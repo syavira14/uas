@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>🎲 Ludo - WePlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#2c1400;font-family:'Nunito',sans-serif;color:#fff}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;overflow-y:auto}
+.screen.active{display:flex}
+
+/* LOBBY */
+#sc-lobby{background:radial-gradient(ellipse at 50% 0%,#4a1800 0%,#1a0800 100%)}
+.lb-header{display:flex;align-items:center;gap:10px;width:100%;max-width:440px;margin-bottom:16px;padding:0 4px}
+.lb-back{background:rgba(255,255,255,.12);border:none;border-radius:50%;width:38px;height:38px;color:#fff;font-size:1.1rem;cursor:pointer}
+.lb-title{font-family:'Orbitron',monospace;font-size:1.6rem;font-weight:900;color:#f59e0b}
+.lb-help{margin-left:auto;background:rgba(255,255,255,.12);border:none;border-radius:50%;width:34px;height:34px;color:#fff;cursor:pointer;font-size:.9rem}
+.stats-card{background:#fff;border-radius:18px;padding:16px 20px;width:100%;max-width:440px;margin-bottom:16px;display:flex;align-items:center;gap:16px;color:#222}
+.sc-avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#dc2626);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:900;color:#fff;flex-shrink:0}
+.sc-row{display:flex;gap:28px}
+.sc-lbl{font-size:.7rem;color:#888}.sc-val{font-size:1.2rem;font-weight:900;color:#f59e0b}
+.mode-list{display:flex;flex-direction:column;gap:12px;width:100%;max-width:440px}
+.mode-banner{border-radius:16px;padding:18px 22px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:transform .2s,box-shadow .2s;position:relative;overflow:hidden}
+.mode-banner:hover{transform:translateY(-3px);box-shadow:0 14px 40px rgba(0,0,0,.5)}
+.mode-banner::before{content:'';position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,255,255,.08),transparent 60%)}
+.mb-green{background:linear-gradient(135deg,#15803d,#166534)}
+.mb-blue{background:linear-gradient(135deg,#1d4ed8,#1e3a8a)}
+.mb-red{background:linear-gradient(135deg,#dc2626,#991b1b)}
+.mb-tag{background:rgba(255,255,255,.25);border-radius:20px;padding:2px 10px;font-size:.7rem;font-weight:700;display:inline-block;margin-bottom:6px}
+.mb-mode{font-size:2rem;font-weight:900;line-height:1.1}
+.mb-enter{margin-top:6px;font-size:.82rem;font-weight:700;color:rgba(255,255,255,.85)}
+.mb-right{font-size:3rem;filter:drop-shadow(0 4px 8px rgba(0,0,0,.4))}
+.lb-nav{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-between;padding:12px 40px 20px;background:rgba(0,0,0,.6)}
+.nav-btn{background:rgba(255,255,255,.12);border:none;border-radius:50%;width:50px;height:50px;color:#fff;font-size:1.3rem;cursor:pointer}
+
+/* WAITING */
+#sc-wait{background:rgba(0,0,0,.9)}
+.wt-title{font-family:'Orbitron',monospace;font-size:1.3rem;color:#f59e0b;margin-bottom:6px}
+.wt-sub{color:#64748b;font-size:.85rem;margin-bottom:22px}
+.wt-slots{display:flex;flex-direction:column;gap:8px;width:100%;max-width:360px;margin-bottom:20px}
+.wt-row{display:flex;align-items:center;gap:12px;padding:11px 15px;border-radius:12px;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.08)}
+.wt-row.filled{border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.08)}
+.wt-dot{width:16px;height:16px;border-radius:50%;flex-shrink:0}
+.wt-name{font-weight:800;font-size:.88rem}
+.wt-badge{margin-left:auto;font-size:.7rem;color:#64748b}
+.wt-spin{width:38px;height:38px;border:3px solid rgba(255,255,255,.1);border-top:3px solid #f59e0b;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.btn-cancel{padding:10px 28px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:12px;color:#e2e8f0;font-family:'Nunito',sans-serif;font-size:.9rem;font-weight:800;cursor:pointer}
+
+/* GAME - board mengambil sebanyak mungkin ruang */
+#sc-game{background:#1a0a00;padding:0;justify-content:flex-start;overflow:hidden}
+
+#player-panels{
+  width:100%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:4px 8px;
+  flex-shrink:0;
+  background:rgba(0,0,0,.75);
+  min-height:52px;
+}
+.pp{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:10px}
+.pp.pp-opp{background:rgba(220,38,38,.2);border:1.5px solid #dc2626}
+.pp.pp-me{background:rgba(22,163,74,.2);border:1.5px solid #16a34a}
+.pp-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.75rem;color:#fff;border:2px solid rgba(255,255,255,.4);flex-shrink:0}
+.pp-info{display:flex;flex-direction:column;gap:1px}
+.pp-name{font-weight:800;font-size:.72rem;max-width:65px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pp-label{font-size:.55rem;color:#94a3b8;font-weight:700}
+.pp-dice-wrap{display:flex;flex-direction:column;align-items:center;gap:1px;margin-left:3px}
+.pp-dice-lbl{font-size:.48rem;color:#64748b}
+
+/* Board area - isi sisa ruang */
+#board-area{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+  min-height:0;
+  overflow:hidden;
+  background:#1a0a00;
+}
+#ludoCanvas{border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.8);touch-action:manipulation;cursor:pointer;display:block}
+
+/* Bottom bar */
+#bottom-bar{width:100%;display:flex;align-items:center;gap:8px;padding:5px 10px;background:rgba(0,0,0,.85);flex-shrink:0}
+.bb-btn{background:rgba(255,255,255,.1);border:none;border-radius:10px;width:34px;height:34px;color:#fff;font-size:.95rem;cursor:pointer;flex-shrink:0}
+#chat-input{flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:5px 10px;color:#fff;font-family:'Nunito',sans-serif;font-size:.78rem;outline:none;min-width:0}
+#chat-input::placeholder{color:#475569}
+#send-btn{background:rgba(245,158,11,.8);border:none;border-radius:10px;width:34px;height:34px;color:#fff;font-size:.9rem;cursor:pointer;flex-shrink:0}
+
+/* Chat overlay */
+#chat-overlay{position:fixed;bottom:50px;left:8px;right:8px;max-height:90px;overflow-y:auto;pointer-events:none;display:flex;flex-direction:column;gap:3px;z-index:100}
+.chat-msg{background:rgba(0,0,0,.78);border-radius:10px;padding:3px 9px;font-size:.72rem;display:inline-block;align-self:flex-start;max-width:82%}
+.chat-msg .cm-name{font-weight:800;margin-right:4px}
+
+/* Roll button */
+#roll-wrap{position:fixed;bottom:50px;left:50%;transform:translateX(-50%);display:none;z-index:200}
+#roll-btn{padding:11px 34px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:50px;color:#1a0800;font-family:'Nunito',sans-serif;font-size:.95rem;font-weight:900;cursor:pointer;box-shadow:0 5px 20px rgba(245,158,11,.6);animation:rp 1.3s ease-in-out infinite}
+@keyframes rp{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+
+/* Toast */
+#toast{position:fixed;top:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.92);border:1.5px solid rgba(245,158,11,.4);border-radius:12px;padding:6px 16px;font-size:.78rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;z-index:9999;max-width:92vw;text-align:center}
+#toast.show{opacity:1}
+
+/* Game Over */
+#sc-over{background:rgba(0,0,0,.95)}
+.ov-trophy{font-size:5rem;margin-bottom:12px;animation:bi .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes bi{0%{transform:scale(0)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
+.ov-title{font-family:'Orbitron',monospace;font-size:2rem;font-weight:900;margin-bottom:6px}
+.ov-sub{color:#64748b;margin-bottom:26px;font-size:.9rem}
+.ov-btns{display:flex;gap:12px}
+.ov-btn{padding:12px 28px;border:none;border-radius:13px;font-family:'Nunito',sans-serif;font-size:.95rem;font-weight:800;cursor:pointer;transition:transform .2s}
+.ov-btn:hover{transform:translateY(-2px)}
+.ov-btn.primary{background:linear-gradient(135deg,#f59e0b,#d97706);color:#1a0800}
+.ov-btn.secondary{background:rgba(255,255,255,.08);color:#e2e8f0;border:1.5px solid rgba(255,255,255,.12)}
+</style>
+</head>
+<body>
+
+<!-- LOBBY -->
+<div id="sc-lobby" class="screen active">
+  <div class="lb-header">
+    <button class="lb-back" onclick="goHome()">←</button>
+    <span class="lb-title">Ludo</span>
+    <button class="lb-help">?</button>
+  </div>
+  <div class="stats-card">
+    <div class="sc-avatar" id="lb-avatar">P</div>
+    <div>
+      <div class="sc-row">
+        <div><div class="sc-lbl">Total Matches</div><div class="sc-val" id="st-m">0</div></div>
+        <div><div class="sc-lbl">Win Rate</div><div class="sc-val" id="st-w">0%</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="mode-list">
+    <div class="mode-banner mb-green" onclick="startBot()">
+      <div><div class="mb-tag">Offline</div><div class="mb-mode">vs Bot</div><div class="mb-enter">Bermain sendiri · Tanpa internet</div></div>
+      <div class="mb-right">🎲</div>
+    </div>
+    <div class="mode-banner mb-blue" onclick="joinOnline('2player')">
+      <div><div class="mb-tag">Online</div><div class="mb-mode">1V1</div><div class="mb-enter">2 Pemain via jaringan</div></div>
+      <div class="mb-right">🎲🎲</div>
+    </div>
+    <div class="mode-banner mb-red" onclick="joinOnline('4player')">
+      <div><div class="mb-tag">Online</div><div class="mb-mode">4 Player</div><div class="mb-enter">4 Pemain via jaringan</div></div>
+      <div class="mb-right">♟️</div>
+    </div>
+  </div>
+  <div class="lb-nav">
+    <button class="nav-btn">🏆</button>
+    <button class="nav-btn" onclick="goHome()">🏠</button>
+  </div>
+</div>
+
+<!-- WAITING -->
+<div id="sc-wait" class="screen">
+  <div class="wt-title">⏳ Ruang Tunggu</div>
+  <div class="wt-sub" id="wt-sub">Mencari lawan...</div>
+  <div class="wt-slots" id="wt-slots"></div>
+  <div class="wt-spin"></div>
+  <button class="btn-cancel" onclick="cancelWait()">Batalkan</button>
+</div>
+
+<!-- GAME -->
+<div id="sc-game" class="screen">
+  <div id="player-panels">
+    <!-- Lawan kiri (Bot=merah, yard kiri atas) -->
+    <div class="pp pp-opp" id="pp-opp">
+      <div class="pp-avatar" id="pp-opp-av">B</div>
+      <div class="pp-info">
+        <div class="pp-label">LAWAN</div>
+        <div class="pp-name" id="pp-opp-nm">Bot</div>
+      </div>
+      <div class="pp-dice-wrap">
+        <canvas id="dc-opp" width="34" height="34" style="border-radius:4px"></canvas>
+        <span class="pp-dice-lbl">dadu</span>
+      </div>
+    </div>
+
+    <div style="flex:1;text-align:center">
+      <span id="turn-label" style="font-size:.76rem;color:#fbbf24;font-weight:800">Menunggu...</span>
+    </div>
+
+    <!-- Saya kanan (Player=hijau, yard kanan bawah) -->
+    <div class="pp pp-me" id="pp-me">
+      <div class="pp-dice-wrap">
+        <canvas id="dc-me" width="34" height="34" style="border-radius:4px"></canvas>
+        <span class="pp-dice-lbl">dadu</span>
+      </div>
+      <div class="pp-info" style="text-align:right">
+        <div class="pp-label" style="text-align:right">KAMU</div>
+        <div class="pp-name" id="pp-me-nm">Pemain</div>
+      </div>
+      <div class="pp-avatar" id="pp-me-av">P</div>
+    </div>
+  </div>
+
+  <div id="board-area"><canvas id="ludoCanvas"></canvas></div>
+  <div id="chat-overlay"></div>
+  <div id="bottom-bar">
+    <button class="bb-btn">😊</button>
+    <input id="chat-input" placeholder="Ketik pesan..." maxlength="80">
+    <button id="send-btn" onclick="sendChat()">➤</button>
+  </div>
+</div>
+
+<div id="roll-wrap"><button id="roll-btn" onclick="onRollClick()">🎲 Lempar Dadu</button></div>
+<div id="toast"></div>
+
+<!-- GAME OVER -->
+<div id="sc-over" class="screen">
+  <div class="ov-trophy" id="ov-trophy">🏆</div>
+  <div class="ov-title" id="ov-title">MENANG!</div>
+  <div class="ov-sub" id="ov-sub">Permainan selesai</div>
+  <div class="ov-btns">
+    <button class="ov-btn primary" onclick="mainLagi()">🔄 Main Lagi</button>
+    <button class="ov-btn secondary" onclick="goHome()">🏠 Menu</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// AUDIO
+// ═══════════════════════════════════════════
+const sfxBg   = new Audio('../../assets/Ludo.mp3');
+sfxBg.loop=true; sfxBg.volume=0.35;
+const sfxWin  = new Audio('../../assets/menang.mp3');
+const sfxLose = new Audio('../../assets/kalah.mp3');
+function playBg(){ try{sfxBg.play()}catch(e){} }
+function stopBg(){ sfxBg.pause(); sfxBg.currentTime=0 }
+function playWin(){ try{sfxWin.currentTime=0;sfxWin.play()}catch(e){} }
+function playLose(){ try{sfxLose.currentTime=0;sfxLose.play()}catch(e){} }
+
+// ═══════════════════════════════════════════
+// WARNA
+// ═══════════════════════════════════════════
+const CLR   = {red:'#dc2626', blue:'#2563eb', yellow:'#d97706', green:'#16a34a'};
+const CLR_L = {red:'#fca5a5', blue:'#93c5fd', yellow:'#fde68a', green:'#86efac'};
+const CLIST = ['red','blue','yellow','green'];
+
+// ═══════════════════════════════════════════════════════
+// PAPAN 15×15 — koordinat [row, col], 0-indexed
+//
+//  YARD posisi:
+//   red    = baris 0–5,  kol 0–5   (KIRI ATAS)   → BOT
+//   blue   = baris 0–5,  kol 9–14  (KANAN ATAS)
+//   yellow = baris 9–14, kol 0–5   (KIRI BAWAH)
+//   green  = baris 9–14, kol 9–14  (KANAN BAWAH) → PEMAIN
+//
+//  HOME COLUMN (jalur menuju pusat):
+//   red    → row 7,  col 1–6   (horizontal kiri)
+//   blue   → col 7,  row 1–6   (vertikal atas)
+//   yellow → row 7,  col 8–13  (horizontal kanan)
+//   green  → col 7,  row 8–13  (vertikal bawah)
+//
+//  PATH52 — jalur utama 52 kotak searah jarum jam
+//  Titik masuk (START) tiap warna:
+//   red    → index  0 = [6,1]
+//   blue   → index 13 = [1,8]
+//   yellow → index 26 = [8,13]  — tidak dipakai mode 2p
+//   green  → index 39 = [13,6]  ← PEMAIN
+//
+//  Setelah mengelilingi papan (52 langkah),
+//  token masuk HOME COLUMN warna masing-masing (pos 52–57).
+// ═══════════════════════════════════════════════════════
+
+// PATH52 standar Ludo searah jarum jam — DIPERBAIKI sesuai jalur asli
+const PATH52 = [
+  // START MERAH [6,1] → naik ke atas sisi kiri
+  [6,1],[5,1],[4,1],[3,1],[2,1],[1,1],
+  // belok kanan sepanjang baris 1
+  [1,2],[1,3],[1,4],[1,5],[1,6],
+  // belok bawah kolom 6 → sudut atas
+  [0,6],[0,7],
+  // START BIRU [1,8] → turun ke bawah sisi kanan atas
+  [1,8],[2,8],[3,8],[4,8],[5,8],[6,8],
+  // belok kanan baris 6
+  [6,9],[6,10],[6,11],[6,12],[6,13],
+  // sudut kanan atas → ke bawah
+  [6,14],[7,14],[8,14],
+  // START KUNING [8,13] → kiri sepanjang baris 8
+  [8,13],[8,12],[8,11],[8,10],[8,9],[8,8],
+  // belok bawah sisi kanan bawah
+  [9,8],[10,8],[11,8],[12,8],[13,8],
+  // sudut bawah kanan → kiri
+  [14,8],[14,7],
+  // START HIJAU [13,6] → kiri sepanjang baris 13
+  [13,6],[13,5],[13,4],[13,3],[13,2],[13,1],
+  // belok atas sisi kiri bawah
+  [12,1],[11,1],[10,1],[9,1],[8,1],
+  // sudut kiri bawah → naik
+  [8,0],[7,0],[6,0],
+];
+
+// Safe squares (bintang)
+const SAFE = new Set([0,8,13,21,26,34,39,47]);
+
+// Offset tiap warna di PATH52
+const OFFSET = {red:0, blue:13, yellow:26, green:39};
+
+// Home column tiap warna (localPos 52→57, index 0 = dekat luar, 5 = pusat)
+const HOMECOL = {
+  red:    [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]],
+  blue:   [[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]],
+  yellow: [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]],
+  green:  [[13,7],[12,7],[11,7],[10,7],[9,7],[8,7]],
+};
+
+// Slot yard — posisi TEPAT tengah lingkaran slot
+// Yard red:    rows 0-5, cols 0-5  → lingkaran di dalam kotak putih 4.3×4.3 mulai (0.85,0.85)
+//   4 slot: (1.5,1.5) (1.5,4.5) (4.5,1.5) (4.5,4.5) dalam koordinat sel
+// Sama untuk semua warna
+const YARD = {
+  red:    [[1.5,1.5],[1.5,4.5],[4.5,1.5],[4.5,4.5]],   // row+col offset dari yard start (0,0)
+  blue:   [[1.5,9.5],[1.5,12.5],[4.5,9.5],[4.5,12.5]], // yard start (0,9)
+  yellow: [[9.5,1.5],[9.5,4.5],[12.5,1.5],[12.5,4.5]], // yard start (9,0)
+  green:  [[9.5,9.5],[9.5,12.5],[12.5,9.5],[12.5,12.5]],// yard start (9,9)
+};
+
+// Token finish — ditampilkan di dalam segitiga pusat sesuai warna
+const FINISH_POS = {
+  red:    [{r:7.5,c:5.5},{r:7.5,c:6.2},{r:6.9,c:6.2},{r:8.1,c:6.2}],
+  blue:   [{r:5.5,c:7.5},{r:6.2,c:7.5},{r:6.2,c:6.9},{r:6.2,c:8.1}],
+  yellow: [{r:7.5,c:9.5},{r:7.5,c:8.8},{r:6.9,c:8.8},{r:8.1,c:8.8}],
+  green:  [{r:9.5,c:7.5},{r:8.8,c:7.5},{r:8.8,c:6.9},{r:8.8,c:8.1}],
+};
+
+// ═══════════════════════════════════════════
+// CANVAS
+// ═══════════════════════════════════════════
+const cv  = document.getElementById('ludoCanvas');
+const ctx = cv.getContext('2d');
+let BS=0, CELL=0;
+
+function resizeCanvas(){
+  const pp = document.getElementById('player-panels');
+  const bb = document.getElementById('bottom-bar');
+  const ppH = pp ? pp.getBoundingClientRect().height : 52;
+  const bbH = bb ? bb.getBoundingClientRect().height : 46;
+  const rollH = 54;
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  // Papan mengambil ruang maksimal — kurangi header, bottom bar, dan sedikit padding
+  const availW = W - 8;
+  const availH = H - ppH - bbH - rollH - 4;
+  BS = Math.floor(Math.min(availW, availH));
+  BS = Math.max(BS, 300);
+  CELL = BS / 15;
+  cv.width  = BS;
+  cv.height = BS;
+  cv.style.width  = BS + 'px';
+  cv.style.height = BS + 'px';
+}
+
+// koordinat TENGAH sel (r, c)
+function cellXY(r, c){ return { x:(c+0.5)*CELL, y:(r+0.5)*CELL }; }
+
+function rrect(c2,x,y,w,h,r){
+  c2.beginPath();
+  c2.moveTo(x+r,y); c2.lineTo(x+w-r,y); c2.arcTo(x+w,y,x+w,y+r,r);
+  c2.lineTo(x+w,y+h-r); c2.arcTo(x+w,y+h,x+w-r,y+h,r);
+  c2.lineTo(x+r,y+h); c2.arcTo(x,y+h,x,y+h-r,r);
+  c2.lineTo(x,y+r); c2.arcTo(x,y,x+r,y,r);
+  c2.closePath();
+}
+
+function drawStar(cx,cy,r,fill){
+  ctx.save(); ctx.fillStyle=fill; ctx.beginPath();
+  for(let i=0;i<10;i++){
+    const a=(i*Math.PI/5)-Math.PI/2, rad=i%2===0?r:r*0.42;
+    i===0?ctx.moveTo(cx+rad*Math.cos(a),cy+rad*Math.sin(a)):ctx.lineTo(cx+rad*Math.cos(a),cy+rad*Math.sin(a));
+  }
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+// ═══════════════════════════════════════════
+// DRAW BOARD
+// ═══════════════════════════════════════════
+function drawBoard(){
+  if(!BS||!CELL) return;
+  const C = CELL;
+
+  // Background papan
+  ctx.fillStyle = '#f0e0c0';
+  ctx.fillRect(0,0,BS,BS);
+
+  // Border emas
+  ctx.strokeStyle='#c8960a'; ctx.lineWidth=Math.max(3,C*0.15);
+  rrect(ctx,2,2,BS-4,BS-4,10); ctx.stroke();
+
+  // ── 4 Yard (6×6 sel di sudut) ──
+  const YARDS = [
+    {c:'red',   r:0, col:0},
+    {c:'blue',  r:0, col:9},
+    {c:'yellow',r:9, col:0},
+    {c:'green', r:9, col:9},
+  ];
+  YARDS.forEach(({c,r,col})=>{
+    // Background yard
+    ctx.fillStyle = CLR[c];
+    ctx.fillRect(col*C, r*C, 6*C, 6*C);
+    // Kotak putih dalam
+    ctx.fillStyle = '#fff';
+    rrect(ctx, (col+0.5)*C, (r+0.5)*C, 5*C, 5*C, C*0.28); ctx.fill();
+    // Kotak warna dalam
+    ctx.fillStyle = CLR[c];
+    rrect(ctx, (col+0.8)*C, (r+0.8)*C, 4.4*C, 4.4*C, C*0.22); ctx.fill();
+    // 4 lingkaran slot token — POSISI TEPAT sama dengan YARD array
+    [[1.5,1.5],[1.5,4.5],[4.5,1.5],[4.5,4.5]].forEach(([sr,sc])=>{
+      const sx = (col+sc)*C;
+      const sy = (r+sr)*C;
+      const rad = C*0.46;
+      // Lingkaran luar (shadow)
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.beginPath(); ctx.arc(sx, sy+rad*0.06, rad, 0, Math.PI*2); ctx.fill();
+      // Lingkaran utama
+      ctx.fillStyle = 'rgba(255,255,255,0.32)';
+      ctx.beginPath(); ctx.arc(sx, sy, rad, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(sx, sy, rad, 0, Math.PI*2); ctx.stroke();
+    });
+  });
+
+  // ── Lengan cross putih ──
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 6*C, 15*C, 3*C);
+  ctx.fillRect(6*C, 0, 3*C, 15*C);
+
+  // ── Home column (jalur berwarna menuju pusat) ──
+  Object.entries(HOMECOL).forEach(([c,cells])=>{
+    cells.forEach(([r,col])=>{
+      ctx.fillStyle = CLR_L[c];
+      ctx.fillRect(col*C+1, r*C+1, C-2, C-2);
+    });
+  });
+
+  // ── Kotak PATH52 ──
+  PATH52.forEach(([r,col],idx)=>{
+    // Warna start squares
+    let bg = '#fff';
+    if(idx===0)  bg = CLR_L.red;
+    if(idx===13) bg = CLR_L.blue;
+    if(idx===26) bg = CLR_L.yellow;
+    if(idx===39) bg = CLR_L.green;
+    ctx.fillStyle = bg;
+    ctx.fillRect(col*C+0.5, r*C+0.5, C-1, C-1);
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(col*C+0.5, r*C+0.5, C-1, C-1);
+
+    // Bintang safe
+    if(SAFE.has(idx) && idx!==0 && idx!==13 && idx!==26 && idx!==39)
+      drawStar((col+0.5)*C, (r+0.5)*C, C*0.28, '#fbbf24');
+
+    // Panah start
+    const arrows = {0:'↑', 13:'←', 26:'→', 39:'↑'};
+    if(arrows[idx]){
+      const cm = {0:'red',13:'blue',26:'yellow',39:'green'};
+      ctx.fillStyle = CLR[cm[idx]];
+      ctx.font = `bold ${C*0.44}px serif`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(arrows[idx], (col+0.5)*C, (r+0.5)*C);
+    }
+  });
+
+  // ── Segitiga pusat ──
+  const cx = 7.5*C, cy = 7.5*C, hr = 1.5*C;
+  [
+    [CLR.red,    [[cx-hr,cy],[cx,cy-hr],[cx,cy+hr]]],
+    [CLR.blue,   [[cx,cy-hr],[cx+hr,cy],[cx-hr,cy]]],
+    [CLR.yellow, [[cx+hr,cy],[cx,cy+hr],[cx,cy-hr]]],
+    [CLR.green,  [[cx,cy+hr],[cx-hr,cy],[cx+hr,cy]]],
+  ].forEach(([clr,pts])=>{
+    ctx.fillStyle=clr; ctx.beginPath();
+    ctx.moveTo(pts[0][0],pts[0][1]);
+    ctx.lineTo(pts[1][0],pts[1][1]);
+    ctx.lineTo(pts[2][0],pts[2][1]);
+    ctx.closePath(); ctx.fill();
+  });
+  drawStar(cx, cy, hr*0.42, 'rgba(255,255,255,0.9)');
+
+  // Grid ringan pada lengan cross
+  ctx.strokeStyle='rgba(0,0,0,0.06)'; ctx.lineWidth=0.5;
+  for(let rr=6;rr<=8;rr++) for(let cc=0;cc<15;cc++) ctx.strokeRect(cc*C,rr*C,C,C);
+  for(let cc=6;cc<=8;cc++) for(let rr=0;rr<15;rr++) ctx.strokeRect(cc*C,rr*C,C,C);
+}
+
+// ═══════════════════════════════════════════
+// DRAW TOKEN
+// ═══════════════════════════════════════════
+function drawToken(color,x,y,r,glow=false){
+  ctx.save();
+  // Shadow
+  ctx.shadowColor='rgba(0,0,0,0.55)'; ctx.shadowBlur=6;
+  ctx.fillStyle = CLR[color];
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+  // Highlight
+  const g=ctx.createRadialGradient(x-r*.3,y-r*.35,r*.05,x,y,r);
+  g.addColorStop(0,'rgba(255,255,255,0.6)');
+  g.addColorStop(1,'rgba(0,0,0,0.2)');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  // Border
+  ctx.strokeStyle = glow ? '#fbbf24' : 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = glow ? 2.5 : 1.5;
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.stroke();
+  // Glow ring
+  if(glow){
+    ctx.strokeStyle='rgba(251,191,36,0.45)'; ctx.lineWidth=5;
+    ctx.beginPath(); ctx.arc(x,y,r+3,0,Math.PI*2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════
+// DRAW DICE
+// ═══════════════════════════════════════════
+function drawDiceFace(c2,x,y,sz,val){
+  c2.save();
+  c2.shadowColor='rgba(0,0,0,0.4)'; c2.shadowBlur=5;
+  c2.fillStyle='#f5f0e8';
+  rrect(c2,x,y,sz,sz,sz*0.18); c2.fill();
+  c2.shadowBlur=0;
+  c2.strokeStyle='rgba(0,0,0,0.2)'; c2.lineWidth=1.5;
+  rrect(c2,x,y,sz,sz,sz*0.18); c2.stroke();
+  c2.fillStyle='#1a0800';
+  const d=sz*0.13;
+  const D={
+    1:[[.5,.5]],
+    2:[[.28,.28],[.72,.72]],
+    3:[[.25,.25],[.5,.5],[.75,.75]],
+    4:[[.28,.28],[.72,.28],[.28,.72],[.72,.72]],
+    5:[[.28,.28],[.72,.28],[.5,.5],[.28,.72],[.72,.72]],
+    6:[[.28,.2],[.72,.2],[.28,.5],[.72,.5],[.28,.8],[.72,.8]]
+  };
+  (D[val]||D[1]).forEach(([fx,fy])=>{
+    c2.beginPath(); c2.arc(x+fx*sz,y+fy*sz,d,0,Math.PI*2); c2.fill();
+  });
+  c2.restore();
+}
+
+function drawSmallDice(canvasEl,val){
+  if(!canvasEl) return;
+  const dtx=canvasEl.getContext('2d');
+  dtx.clearRect(0,0,40,40);
+  drawDiceFace(dtx,1,1,32,val);
+}
+
+// ═══════════════════════════════════════════
+// POSISI TOKEN DI LAYAR
+// ═══════════════════════════════════════════
+function tokenPos(color,localPos){
+  if(localPos<0) return null;
+  if(localPos>=52){
+    const hc=HOMECOL[color];
+    const i=localPos-52;
+    if(!hc||i>=hc.length) return null;
+    return cellXY(hc[i][0],hc[i][1]);
+  }
+  const gi=((OFFSET[color]+localPos)%52+52)%52;
+  const [r,c]=PATH52[gi];
+  return cellXY(r,c);
+}
+
+// ═══════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════
+let gs=null;
+let myIdx=0;
+let myTurn=false;
+let pendingDice=null;
+let moveableToks=[];
+let currentMode='';
+let lastDice={};
+let animating=false;
+let diceAnim={active:false,display:1,interval:null};
+let stats=JSON.parse(localStorage.getItem('ludo_stats')||'{"m":0,"w":0}');
+let myUsername=localStorage.getItem('weplay_username')||'Pemain';
+
+// Mode 2p: Bot=merah(kiri atas), Player=hijau(kanan bawah) — DIAGONAL/MENYILANG
+function makeGS(numPlayers,botMode){
+  const players=[];
+  if(botMode && numPlayers===2){
+    players.push({color:'red',   username:'Bot',      isBot:true,  tokens:[{pos:-1,fin:false},{pos:-1,fin:false},{pos:-1,fin:false},{pos:-1,fin:false}],finished:false,finCount:0});
+    players.push({color:'green', username:myUsername, isBot:false, tokens:[{pos:-1,fin:false},{pos:-1,fin:false},{pos:-1,fin:false},{pos:-1,fin:false}],finished:false,finCount:0});
+  } else {
+    for(let i=0;i<numPlayers;i++){
+      players.push({color:CLIST[i],username:i===0?myUsername:'Bot',isBot:i>0,
+        tokens:[{pos:-1,fin:false},{pos:-1,fin:false},{pos:-1,fin:false},{pos:-1,fin:false}],finished:false,finCount:0});
+    }
+  }
+  return {players,currentTurn:0,consec6:0,numPlayers,status:'playing'};
+}
+
+function canMove(pIdx,tIdx,dice){
+  const tok=gs.players[pIdx].tokens[tIdx];
+  if(tok.fin) return false;
+  if(tok.pos<0) return dice===6;
+  return tok.pos+dice<=57;
+}
+function getMoveable(pIdx,dice){
+  return [0,1,2,3].filter(ti=>canMove(pIdx,ti,dice));
+}
+
+function animateMove(pIdx,tIdx,dice,onDone){
+  animating=true;
+  const p=gs.players[pIdx], tok=p.tokens[tIdx];
+  if(tok.pos<0 && dice===6){
+    tok.pos=0; render();
+    setTimeout(()=>{ animating=false; onDone({extra:true,captured:checkCapture(pIdx,tIdx)}); },500);
+    return;
+  }
+  const startPos=tok.pos, total=dice;
+  let done=0;
+  function doStep(){
+    done++; tok.pos=startPos+done;
+    if(tok.pos>=57){
+      tok.pos=57; tok.fin=true;
+      p.finCount=p.tokens.filter(t=>t.fin).length;
+      render();
+      setTimeout(()=>{ animating=false; onDone({extra:true,captured:[]}); },400);
+      return;
+    }
+    render();
+    if(done<total) setTimeout(doStep,170);
+    else { const cap=checkCapture(pIdx,tIdx); setTimeout(()=>{ animating=false; onDone({extra:cap.length>0,captured:cap}); },300); }
+  }
+  doStep();
+}
+
+function checkCapture(pIdx,tIdx){
+  const p=gs.players[pIdx], tok=p.tokens[tIdx];
+  const captured=[];
+  if(!tok.fin && tok.pos<52){
+    const gi=((OFFSET[p.color]+tok.pos)%52+52)%52;
+    if(!SAFE.has(gi)){
+      gs.players.forEach((opp,oi)=>{
+        if(oi===pIdx) return;
+        opp.tokens.forEach(ot=>{
+          if(ot.pos<0||ot.fin||ot.pos>=52) return;
+          const ogi=((OFFSET[opp.color]+ot.pos)%52+52)%52;
+          if(ogi===gi){ ot.pos=-1; captured.push({pi:oi}); toast(`💥 Bidak ${opp.username} dikirim pulang!`); }
+        });
+      });
+    }
+  }
+  return captured;
+}
+
+function checkWin(pIdx){ return gs.players[pIdx].tokens.every(t=>t.fin); }
+
+function nextTurn(){
+  gs.consec6=0; pendingDice=null;
+  let n=(gs.currentTurn+1)%gs.numPlayers, tries=0;
+  while(gs.players[n].finished && tries<gs.numPlayers){ n=(n+1)%gs.numPlayers; tries++; }
+  gs.currentTurn=n;
+}
+
+// Dadu dengan bias 6 saat semua token di yard (revisi 5)
+function rollDiceValue(pIdx){
+  const p=gs.players[pIdx];
+  const allInYard=p.tokens.every(t=>t.pos<0 && !t.fin);
+  if(allInYard){
+    return Math.random()<0.40 ? 6 : Math.floor(Math.random()*5)+1;
+  }
+  return Math.floor(Math.random()*6)+1;
+}
+
+// ═══════════════════════════════════════════
+// BOT AI
+// ═══════════════════════════════════════════
+let botTimer=null;
+
+function botTurn(){
+  clearTimeout(botTimer);
+  botTimer=setTimeout(()=>{
+    if(!gs||gs.status!=='playing') return;
+    const pIdx=gs.currentTurn;
+    if(!gs.players[pIdx].isBot) return;
+    const dice=rollDiceValue(pIdx);
+    lastDice[gs.players[pIdx].color]=dice;
+    if(dice===6){ gs.consec6++; if(gs.consec6>=3){ toast(`💀 Bot dapat 6 tiga kali!`); nextTurn(); render(); updateHUD(); scheduleNext(); return; } }
+    else gs.consec6=0;
+    animateDice(dice, gs.players[pIdx].color, ()=>{
+      pendingDice=dice; updateHUD();
+      const mv=getMoveable(pIdx,dice);
+      if(!mv.length){ toast(`Bot tidak bisa bergerak`); nextTurn(); render(); updateHUD(); scheduleNext(); return; }
+      let best=mv[0], bestScore=-1;
+      mv.forEach(ti=>{
+        const tok=gs.players[pIdx].tokens[ti];
+        let score=tok.pos<0?1:tok.pos+2;
+        if(tok.pos>=0){
+          const tp=tok.pos+dice;
+          if(tp<52){
+            const gi=((OFFSET[gs.players[pIdx].color]+tp)%52+52)%52;
+            gs.players.forEach((opp,oi)=>{
+              if(oi===pIdx) return;
+              opp.tokens.forEach(ot=>{
+                if(ot.pos<0||ot.fin||ot.pos>=52) return;
+                if(((OFFSET[opp.color]+ot.pos)%52+52)%52===gi && !SAFE.has(gi)) score+=50;
+              });
+            });
+          }
+        }
+        if(score>bestScore){bestScore=score;best=ti;}
+      });
+      animateMove(pIdx,best,dice,(result)=>{
+        if(checkWin(pIdx)){endGame(pIdx);return;}
+        render(); updateHUD();
+        if(result.extra&&dice!==6){pendingDice=null;scheduleNext();}
+        else if(dice===6&&gs.consec6<3){pendingDice=null;scheduleNext();}
+        else{nextTurn();render();updateHUD();scheduleNext();}
+      });
+    });
+  },750);
+}
+
+function scheduleNext(){
+  if(!gs||gs.status!=='playing') return;
+  if(gs.players[gs.currentTurn].isBot){
+    botTurn();
+  } else {
+    myTurn=true; moveableToks=[]; pendingDice=null;
+    document.getElementById('roll-wrap').style.display='flex';
+    document.getElementById('roll-btn').disabled=false;
+    toast('🎲 Giliranmu! Lempar dadu!');
+    updateHUD();
+  }
+}
+
+// ═══════════════════════════════════════════
+// ANIMASI DADU
+// ═══════════════════════════════════════════
+function animateDice(finalVal,color,onDone){
+  diceAnim.active=true;
+  clearInterval(diceAnim.interval);
+  let frame=0;
+  const isMe=(color===gs.players[myIdx].color);
+  const dcEl=isMe?document.getElementById('dc-me'):document.getElementById('dc-opp');
+  diceAnim.interval=setInterval(()=>{
+    frame++;
+    diceAnim.display=Math.floor(Math.random()*6)+1;
+    drawSmallDice(dcEl,diceAnim.display);
+    if(frame>=14){
+      clearInterval(diceAnim.interval);
+      diceAnim.display=finalVal;
+      drawSmallDice(dcEl,finalVal);
+      setTimeout(()=>{ diceAnim.active=false; onDone(); },300);
+    }
+  },90);
+}
+
+// ═══════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════
+function render(){
+  if(!BS||!CELL) return;
+  drawBoard();
+  if(!gs) return;
+  const C=CELL;
+  gs.players.forEach((p,pi)=>{
+    let finIdx=0;
+    p.tokens.forEach((tok,ti)=>{
+      if(tok.fin){
+        const slot=FINISH_POS[p.color][finIdx%4]; finIdx++;
+        drawToken(p.color, slot.c*C, slot.r*C, C*0.27, false);
+        return;
+      }
+      let sp;
+      if(tok.pos<0){
+        // TEPAT di tengah lingkaran slot yard
+        const sl=YARD[p.color][ti];
+        sp={x:sl[1]*C, y:sl[0]*C};
+      } else {
+        sp=tokenPos(p.color,tok.pos);
+      }
+      if(!sp) return;
+      const glow=(pi===myIdx && moveableToks.includes(ti) && myTurn && !animating);
+      drawToken(p.color,sp.x,sp.y,C*0.34,glow);
+    });
+  });
+  if(!diceAnim.active && pendingDice && myTurn){
+    const sz=C*1.1;
+    drawDiceFace(ctx,BS-sz-4,4,sz,pendingDice);
+  }
+}
+
+// ═══════════════════════════════════════════
+// HUD
+// ═══════════════════════════════════════════
+function buildPanels(){
+  if(!gs) return;
+  const me=gs.players[myIdx];
+  const opp=gs.players[myIdx===0?1:0];
+  const meAv=document.getElementById('pp-me-av');
+  meAv.textContent=(me.username[0]||'P').toUpperCase();
+  meAv.style.background=CLR[me.color];
+  document.getElementById('pp-me-nm').textContent=me.username;
+  document.getElementById('pp-me').style.borderColor=CLR[me.color];
+  const oppAv=document.getElementById('pp-opp-av');
+  oppAv.textContent=(opp.username[0]||'B').toUpperCase();
+  oppAv.style.background=CLR[opp.color];
+  document.getElementById('pp-opp-nm').textContent=opp.username;
+  document.getElementById('pp-opp').style.borderColor=CLR[opp.color];
+  drawSmallDice(document.getElementById('dc-me'),1);
+  drawSmallDice(document.getElementById('dc-opp'),1);
+}
+
+function updateHUD(){
+  if(!gs) return;
+  gs.players.forEach((p,pi)=>{
+    const dcEl=pi===myIdx?document.getElementById('dc-me'):document.getElementById('dc-opp');
+    if(lastDice[p.color]) drawSmallDice(dcEl,lastDice[p.color]);
+  });
+  const lbl=document.getElementById('turn-label');
+  if(!lbl) return;
+  if(myTurn&&!animating) lbl.textContent='🎲 Giliranmu!';
+  else {
+    const cur=gs.players[gs.currentTurn];
+    lbl.textContent=animating?'⏳ Bergerak...':(cur?`⏳ Giliran ${cur.username}...`:'');
+  }
+}
+
+// ═══════════════════════════════════════════
+// GAME OVER
+// ═══════════════════════════════════════════
+function endGame(winnerIdx){
+  if(!gs||gs.status==='finished') return;
+  gs.status='finished'; clearTimeout(botTimer); stopBg();
+  const win=winnerIdx===myIdx;
+  stats.m++; if(win) stats.w++;
+  localStorage.setItem('ludo_stats',JSON.stringify(stats));
+  setTimeout(()=>{
+    document.getElementById('ov-trophy').textContent=win?'🏆':'😢';
+    document.getElementById('ov-title').textContent=win?'KAMU MENANG!':'KAMU KALAH!';
+    document.getElementById('ov-title').style.color=win?'#22c55e':'#ef4444';
+    document.getElementById('ov-sub').textContent=`${gs.players[winnerIdx].username} memenangkan permainan!`;
+    win?playWin():playLose();
+    showScreen('sc-over');
+  },700);
+}
+
+// ═══════════════════════════════════════════
+// START BOT
+// ═══════════════════════════════════════════
+function startBot(){
+  currentMode='bot';
+  myUsername=localStorage.getItem('weplay_username')||'Pemain';
+  gs=makeGS(2,true);
+  myIdx=1; // hijau
+  lastDice={}; myTurn=false; pendingDice=null; moveableToks=[];
+  animating=false; diceAnim.active=false; clearInterval(diceAnim.interval);
+  clearTimeout(botTimer);
+  resizeCanvas(); buildPanels();
+  showScreen('sc-game'); playBg(); render();
+  gs.currentTurn=0; scheduleNext();
+}
+
+// ═══════════════════════════════════════════
+// ONLINE MODE
+// ═══════════════════════════════════════════
+let socket=null, roomId='';
+
+function joinOnline(mode){
+  myUsername=localStorage.getItem('weplay_username')||'Pemain';
+  currentMode='online'; showScreen('sc-wait');
+  const n=mode==='4player'?4:2; showWaitSlots([],0,n);
+  if(!window.io){
+    const s=document.createElement('script'); s.src='/socket.io/socket.io.js';
+    s.onload=()=>initSocket(mode); document.head.appendChild(s);
+  } else initSocket(mode);
+}
+
+function initSocket(mode){
+  if(socket){socket.removeAllListeners();socket.disconnect();}
+  socket=io({forceNew:true}); setupSocketListeners();
+  socket.on('connect',()=>socket.emit('ludo_join',{mode,username:myUsername}));
+}
+
+function setupSocketListeners(){
+  socket.on('ludo_waiting',({current,target,players})=>showWaitSlots(players,current,target));
+  socket.on('ludo_start',({roomId:rid,playerIdx,gameState:_gs})=>{
+    roomId=rid; myIdx=playerIdx; gs=convertOnlineGS(_gs);
+    lastDice={}; myTurn=false; pendingDice=null; moveableToks=[];
+    resizeCanvas(); buildPanels(); showScreen('sc-game'); playBg(); render();
+    toast(`Kamu: ${CLIST[playerIdx].toUpperCase()}`);
+  });
+  socket.on('ludo_yourTurn',({playerIdx,gameState:_gs})=>{
+    gs=convertOnlineGS(_gs); myTurn=(playerIdx===myIdx);
+    moveableToks=[]; pendingDice=null; diceAnim.active=false;
+    render(); updateHUD();
+    if(myTurn){ document.getElementById('roll-wrap').style.display='flex'; document.getElementById('roll-btn').disabled=false; toast('🎲 Giliranmu!'); }
+    else { document.getElementById('roll-wrap').style.display='none'; toast(`⏳ Giliran ${_gs.players[playerIdx].username}...`); }
+  });
+  socket.on('ludo_diceRolled',({playerIdx,dice,moveable,forfeit,gameState:_gs})=>{
+    gs=convertOnlineGS(_gs); lastDice[gs.players[playerIdx].color]=dice;
+    animateDice(dice,gs.players[playerIdx].color,()=>{
+      updateHUD();
+      if(forfeit){toast(`💀 Dapat 6 tiga kali!`);pendingDice=null;render();return;}
+      if(playerIdx===myIdx){
+        pendingDice=dice; moveableToks=moveable||[];
+        if(!moveableToks.length){toast(`Tidak bisa bergerak`);pendingDice=null;}
+        else if(moveableToks.length===1){
+          setTimeout(()=>{ socket.emit('ludo_moveToken',{roomId,tokenIdx:moveableToks[0]}); moveableToks=[];myTurn=false;pendingDice=null; document.getElementById('roll-wrap').style.display='none'; },600); return;
+        }
+      }
+      render();
+    });
+    document.getElementById('roll-wrap').style.display='none';
+  });
+  socket.on('ludo_tokenMoved',({result,gameState:_gs})=>{
+    gs=convertOnlineGS(_gs);
+    if(result.captured) result.captured.forEach(({player:pi})=>toast(`💥 Bidak ${_gs.players[pi].username} pulang!`));
+    render(); updateHUD();
+  });
+  socket.on('ludo_gameOver',({winner,winnerName,gameState:_gs})=>{
+    gs=convertOnlineGS(_gs); stopBg(); render();
+    const win=winner===myIdx; stats.m++; if(win)stats.w++;
+    localStorage.setItem('ludo_stats',JSON.stringify(stats));
+    setTimeout(()=>{
+      document.getElementById('ov-trophy').textContent=win?'🏆':'😢';
+      document.getElementById('ov-title').textContent=win?'KAMU MENANG!':'KAMU KALAH!';
+      document.getElementById('ov-title').style.color=win?'#22c55e':'#ef4444';
+      document.getElementById('ov-sub').textContent=`${winnerName} memenangkan permainan!`;
+      win?playWin():playLose(); showScreen('sc-over');
+    },700);
+  });
+  socket.on('ludo_chat',({username,msg,color})=>addChatMsg(username,msg,color));
+  socket.on('ludo_error',({msg})=>toast('❌ '+msg));
+  socket.on('disconnect',()=>toast('⚠️ Koneksi terputus'));
+}
+
+function convertOnlineGS(_gs){
+  return {
+    players:_gs.players.map(p=>({color:p.color,username:p.username,isBot:p.isBot||false,finished:p.finished||false,finCount:p.finCount||0,tokens:p.tokens.map(t=>({pos:t.pos,fin:t.finished||false}))})),
+    currentTurn:_gs.currentTurn,consec6:_gs.consecutiveSixes||0,numPlayers:_gs.players.length,status:_gs.status,
+  };
+}
+
+// ═══════════════════════════════════════════
+// KLIK CANVAS
+// ═══════════════════════════════════════════
+cv.addEventListener('click',e=>{
+  if(!myTurn||!moveableToks.length||!pendingDice||animating) return;
+  const rect=cv.getBoundingClientRect();
+  const sx=BS/rect.width, sy=BS/rect.height;
+  const mx=(e.clientX-rect.left)*sx, my2=(e.clientY-rect.top)*sy;
+  const C=CELL, p=gs.players[myIdx];
+  let best=-1, bestD=Infinity;
+  p.tokens.forEach((tok,ti)=>{
+    if(!moveableToks.includes(ti)) return;
+    let sp;
+    if(tok.pos<0){ const sl=YARD[p.color][ti]; sp={x:sl[1]*C,y:sl[0]*C}; }
+    else sp=tokenPos(p.color,tok.pos);
+    if(!sp) return;
+    const d=Math.hypot(sp.x-mx,sp.y-my2);
+    if(d<bestD){bestD=d;best=ti;}
+  });
+  if(best>=0&&bestD<C*1.0){
+    if(currentMode==='bot'){
+      const savedDice=pendingDice; moveableToks=[];myTurn=false;
+      document.getElementById('roll-wrap').style.display='none';
+      animateMove(myIdx,best,savedDice,(result)=>{
+        render(); if(checkWin(myIdx)){endGame(myIdx);return;}
+        if(result.extra&&savedDice!==6){pendingDice=null;toast('Giliran extra!');scheduleNext();}
+        else if(savedDice===6&&gs.consec6<3){pendingDice=null;scheduleNext();}
+        else{nextTurn();pendingDice=null;render();updateHUD();scheduleNext();}
+      });
+    } else {
+      socket.emit('ludo_moveToken',{roomId,tokenIdx:best});
+      moveableToks=[];myTurn=false;pendingDice=null;
+      document.getElementById('roll-wrap').style.display='none'; render();
+    }
+  }
+});
+cv.addEventListener('touchend',e=>{
+  e.preventDefault();
+  const t=e.changedTouches[0];
+  cv.dispatchEvent(new MouseEvent('click',{clientX:t.clientX,clientY:t.clientY}));
+},{passive:false});
+
+// ═══════════════════════════════════════════
+// LEMPAR DADU
+// ═══════════════════════════════════════════
+function onRollClick(){
+  if(!myTurn||animating) return;
+  document.getElementById('roll-btn').disabled=true;
+  document.getElementById('roll-wrap').style.display='none';
+  if(currentMode==='bot'){
+    const dice=rollDiceValue(myIdx);
+    lastDice[gs.players[myIdx].color]=dice;
+    if(dice===6){ gs.consec6++; if(gs.consec6>=3){ toast('💀 Dapat 6 tiga kali! Terlewat!'); nextTurn();render();updateHUD();scheduleNext();return; } }
+    else gs.consec6=0;
+    animateDice(dice,gs.players[myIdx].color,()=>{
+      pendingDice=dice; updateHUD();
+      const mv=getMoveable(myIdx,dice);
+      if(!mv.length){ toast(`Angka ${dice} – tidak bisa bergerak!`); nextTurn();pendingDice=null;render();updateHUD();scheduleNext(); }
+      else {
+        moveableToks=mv; toast(`Angka ${dice}! Pilih bidak.`); render();
+        if(mv.length===1){
+          const sd=dice; moveableToks=[];myTurn=false;
+          setTimeout(()=>{
+            animateMove(myIdx,mv[0],sd,(result)=>{
+              render(); if(checkWin(myIdx)){endGame(myIdx);return;}
+              if(result.extra&&sd!==6){pendingDice=null;toast('Giliran extra!');scheduleNext();}
+              else if(sd===6&&gs.consec6<3){pendingDice=null;scheduleNext();}
+              else{nextTurn();pendingDice=null;render();updateHUD();scheduleNext();}
+            });
+          },300);
+        }
+      }
+    });
+  } else {
+    socket.emit('ludo_rollDice',{roomId});
+  }
+}
+
+// ═══════════════════════════════════════════
+// CHAT
+// ═══════════════════════════════════════════
+document.getElementById('chat-input').addEventListener('keydown',e=>{ if(e.key==='Enter') sendChat(); });
+function sendChat(){
+  const inp=document.getElementById('chat-input');
+  const msg=inp.value.trim(); if(!msg) return;
+  if(currentMode==='online'&&socket) socket.emit('ludo_chat',{roomId,msg});
+  else if(gs) addChatMsg(gs.players[myIdx].username,msg,gs.players[myIdx].color);
+  inp.value='';
+}
+function addChatMsg(name,msg,color){
+  const ov=document.getElementById('chat-overlay');
+  const div=document.createElement('div'); div.className='chat-msg';
+  div.innerHTML=`<span class="cm-name" style="color:${CLR[color]||'#f59e0b'}">${name}:</span>${msg}`;
+  ov.appendChild(div);
+  if(ov.children.length>6) ov.children[0].remove();
+  ov.scrollTop=ov.scrollHeight;
+}
+
+// ═══════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════
+function showWaitSlots(players,current,target){
+  document.getElementById('wt-sub').textContent=`${current}/${target} pemain terhubung`;
+  const cont=document.getElementById('wt-slots'); cont.innerHTML='';
+  for(let i=0;i<target;i++){
+    const p=players[i],color=CLIST[i];
+    cont.innerHTML+=p&&p.id
+      ?`<div class="wt-row filled"><div class="wt-dot" style="background:${CLR[color]}"></div><div class="wt-name">${p.username}</div><div class="wt-badge">✅</div></div>`
+      :`<div class="wt-row"><div class="wt-dot" style="background:${CLR[color]};opacity:.3"></div><div class="wt-name" style="color:#475569">Menunggu...</div></div>`;
+  }
+}
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+let toastT;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2600);
+}
+function cancelWait(){ if(socket){socket.disconnect();socket=null;} showScreen('sc-lobby'); }
+function mainLagi(){ clearTimeout(botTimer); if(socket){socket.disconnect();socket=null;} showScreen('sc-lobby'); updateLobbyStats(); }
+function goHome(){ stopBg(); clearTimeout(botTimer); if(socket){socket.disconnect();socket=null;} window.location.href='/'; }
+function updateLobbyStats(){
+  myUsername=localStorage.getItem('weplay_username')||'Pemain';
+  document.getElementById('lb-avatar').textContent=(myUsername[0]||'P').toUpperCase();
+  document.getElementById('st-m').textContent=stats.m;
+  document.getElementById('st-w').textContent=stats.m>0?((stats.w/stats.m*100).toFixed(1)+'%'):'0%';
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+window.addEventListener('load',()=>{
+  updateLobbyStats();
+  resizeCanvas();
+  setTimeout(()=>{ resizeCanvas(); drawBoard(); },120);
+});
+window.addEventListener('resize',()=>{
+  resizeCanvas();
+  if(gs && document.getElementById('sc-game').classList.contains('active')) render();
+  else drawBoard();
+});
+</script>
+</body>
+</html>

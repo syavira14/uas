@@ -1,0 +1,13 @@
+{
+  "name": "game-portal-uas",
+  "version": "2.0.0",
+  "description": "Game Portal UAS - Ludo, Kuis, Congklak, Ballpool dengan mode Bot",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3"
+  }
+}

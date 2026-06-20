@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>🎮 Game Aframe - UAS</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; overflow: hidden; font-family: 'Rajdhani', 'Segoe UI', sans-serif; user-select: none; background: #000; }
+
+        /* === LOGIN OVERLAY === */
+        #login-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('assets/background3D.jpeg') center center / cover no-repeat;
+            z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.8s ease;
+        }
+        .login-bg-stars {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.35);
+        }
+        @keyframes twinkle { from { opacity: 0.6; } to { opacity: 1; } }
+        .login-box {
+            position: relative; z-index: 1;
+            background: rgba(10, 5, 30, 0.85);
+            backdrop-filter: blur(20px);
+            padding: 50px 45px; border-radius: 24px;
+            border: 1px solid rgba(160, 80, 255, 0.4);
+            text-align: center; width: 400px;
+            box-shadow: 0 0 60px rgba(120, 40, 255, 0.3), 0 20px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+        .login-logo {
+            font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 700;
+            color: #a855f7; letter-spacing: 6px; text-transform: uppercase; margin-bottom: 8px;
+        }
+        .login-title {
+            font-family: 'Orbitron', monospace; font-size: 28px; font-weight: 900;
+            background: linear-gradient(135deg, #fff 0%, #a855f7 50%, #60a5fa 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            margin: 0 0 6px; letter-spacing: 2px;
+        }
+        .login-sub { color: #64748b; font-size: 14px; margin-bottom: 35px; }
+        .input-group { position: relative; margin-bottom: 16px; }
+        .input-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 16px; }
+        .input-field {
+            width: 100%; padding: 14px 14px 14px 44px; font-size: 15px; font-family: 'Rajdhani', sans-serif;
+            border-radius: 12px; border: 1px solid rgba(160,80,255,0.3); outline: none;
+            background: rgba(255,255,255,0.06); color: #e2e8f0;
+            transition: all 0.3s; font-weight: 600;
+        }
+        .input-field:focus { border-color: #a855f7; background: rgba(168,85,247,0.08); box-shadow: 0 0 20px rgba(168,85,247,0.2); }
+        .input-field::placeholder { color: #475569; }
+        .btn-login {
+            width: 100%; padding: 15px; font-size: 17px; font-weight: 700; font-family: 'Orbitron', monospace;
+            color: white; background: linear-gradient(135deg, #7c3aed, #4f46e5, #2563eb);
+            border: none; border-radius: 12px; cursor: pointer; letter-spacing: 2px;
+            box-shadow: 0 4px 30px rgba(124,58,237,0.5); transition: all 0.3s; position: relative; overflow: hidden;
+        }
+        .btn-login::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transition: left 0.4s;
+        }
+        .btn-login:hover::before { left: 100%; }
+        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 8px 40px rgba(124,58,237,0.7); }
+
+        /* === HUD === */
+        #hud-welcome {
+            display: none; position: absolute; top: 20px; left: 20px;
+            background: rgba(0,0,0,0.75); padding: 10px 20px;
+            border-radius: 30px; color: white; font-weight: 700;
+            z-index: 999; border: 1px solid rgba(168,85,247,0.4);
+            backdrop-filter: blur(10px); font-size: 15px;
+        }
+        .btn-logout {
+            background: linear-gradient(135deg, #ef4444, #dc2626); border: none; color: white;
+            padding: 5px 14px; border-radius: 15px; margin-left: 10px;
+            cursor: pointer; font-size: 12px; font-weight: 700; font-family: 'Rajdhani', sans-serif;
+        }
+        #click-instruction {
+            display: none; position: absolute; bottom: 28px; left: 50%;
+            transform: translateX(-50%); background: rgba(0,0,0,0.8);
+            color: #e2e8f0; padding: 12px 28px; border-radius: 30px;
+            font-weight: 600; z-index: 999; font-size: 14px;
+            border: 1px solid rgba(255,255,255,0.15); backdrop-filter: blur(10px);
+            animation: pulse-glow 2.5s ease-in-out infinite;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 10px rgba(168,85,247,0.3); }
+            50% { box-shadow: 0 0 25px rgba(168,85,247,0.7); }
+        }
+
+        /* === GAME CARDS (Floating HTML on top of A-Frame) === */
+        #game-cards-overlay {
+            display: none; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 998; pointer-events: none;
+        }
+        .cards-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 20px; pointer-events: auto;
+        }
+        .game-card {
+            width: 200px; padding: 22px 20px; border-radius: 20px;
+            background: rgba(5, 5, 20, 0.85); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1); color: white;
+            cursor: pointer; transition: all 0.35s cubic-bezier(.34,1.56,.64,1);
+            text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            position: relative; overflow: hidden;
+        }
+        .game-card::before {
+            content: ''; position: absolute; inset: 0; border-radius: 20px;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .game-card:hover { transform: translateY(-10px) scale(1.05); }
+        .game-card:hover::before { opacity: 1; }
+        .gc-ludo { border-color: rgba(52,152,219,0.5); }
+        .gc-ludo::before { background: linear-gradient(135deg, rgba(52,152,219,0.15), transparent); }
+        .gc-ludo:hover { box-shadow: 0 20px 50px rgba(52,152,219,0.4), 0 0 30px rgba(52,152,219,0.2); border-color: #3498db; }
+        .gc-kuis { border-color: rgba(231,76,60,0.5); }
+        .gc-kuis::before { background: linear-gradient(135deg, rgba(231,76,60,0.15), transparent); }
+        .gc-kuis:hover { box-shadow: 0 20px 50px rgba(231,76,60,0.4), 0 0 30px rgba(231,76,60,0.2); border-color: #e74c3c; }
+        .gc-congklak { border-color: rgba(142,68,173,0.5); }
+        .gc-congklak::before { background: linear-gradient(135deg, rgba(142,68,173,0.15), transparent); }
+        .gc-congklak:hover { box-shadow: 0 20px 50px rgba(142,68,173,0.4), 0 0 30px rgba(142,68,173,0.2); border-color: #8e44ad; }
+        .gc-ballpool { border-color: rgba(39,174,96,0.5); }
+        .gc-ballpool::before { background: linear-gradient(135deg, rgba(39,174,96,0.15), transparent); }
+        .gc-ballpool:hover { box-shadow: 0 20px 50px rgba(39,174,96,0.4), 0 0 30px rgba(39,174,96,0.2); border-color: #27ae60; }
+        .card-icon { font-size: 46px; margin-bottom: 10px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5)); }
+        .card-title { font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 700; letter-spacing: 2px; margin-bottom: 6px; }
+        .card-desc { font-size: 12px; color: #94a3b8; line-height: 1.4; }
+        .card-badge {
+            display: inline-block; margin-top: 12px; padding: 3px 12px;
+            border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 1px;
+        }
+        .badge-blue { background: rgba(52,152,219,0.2); color: #60a5fa; border: 1px solid rgba(52,152,219,0.4); }
+        .badge-red { background: rgba(231,76,60,0.2); color: #f87171; border: 1px solid rgba(231,76,60,0.4); }
+        .badge-purple { background: rgba(142,68,173,0.2); color: #c084fc; border: 1px solid rgba(142,68,173,0.4); }
+        .badge-green { background: rgba(39,174,96,0.2); color: #4ade80; border: 1px solid rgba(39,174,96,0.4); }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay">
+    <div class="login-bg-stars"></div>
+    <div class="login-box">
+        <div class="login-logo">✦ GAME ANGJAYY ✦</div>
+        <h1 class="login-title">Lailatul Maghfiroh</h1>
+        <p class="login-sub">Masuk untuk bermain game</p>
+        <div class="input-group">
+            <span class="input-icon">👤</span>
+            <input type="text" id="username" class="input-field" placeholder="Nama Pemain" required autocomplete="off">
+        </div>
+        <div class="input-group">
+            <span class="input-icon">🔐</span>
+            <input type="password" id="password" class="input-field" placeholder="Password" required>
+        </div>
+        <button class="btn-login" onclick="handleLogin()">MASUK KE ROOM</button>
+    </div>
+</div>
+
+<!-- HUD -->
+<div id="hud-welcome">
+    🎮 Halo, <span id="user-display" style="color:#a855f7;">Pemain</span>!
+    <button class="btn-logout" onclick="handleLogout()">Keluar</button>
+</div>
+
+<div id="click-instruction">
+    🖱️ Geser mouse untuk melihat sekitar &nbsp;|&nbsp; Pilih game untuk bermain!
+</div>
+
+<!-- GAME CARDS OVERLAY -->
+<div id="game-cards-overlay">
+    <div class="cards-grid">
+        <div class="game-card gc-ludo" onclick="navigateToGame('Ludo')">
+            <span class="card-icon">🎲</span>
+            <div class="card-title">LUDO</div>
+            <div class="card-desc">Permainan klasik papan Ludo dengan dadu. Mainkan vs Bot!</div>
+            <span class="card-badge badge-blue">2-4 PLAYER</span>
+        </div>
+        <div class="game-card gc-kuis" onclick="navigateToGame('kuis')">
+            <span class="card-icon">🧠</span>
+            <div class="card-title">KUIS KILAT</div>
+            <div class="card-desc">Uji pengetahuanmu dan mengasah otak!</div>
+            <span class="card-badge badge-red">SOLO / ONLINE</span>
+        </div>
+        <div class="game-card gc-congklak" onclick="navigateToGame('congklak')">
+            <span class="card-icon">🥣</span>
+            <div class="card-title">DAKRON</div>
+            <div class="card-desc">Congklak tradisional Indonesia yang bikin dejavu masa kecil. VS Bot tersedia!</div>
+            <span class="card-badge badge-purple">1 VS 1</span>
+        </div>
+        <div class="game-card gc-ballpool" onclick="navigateToGame('ballpool')">
+            <span class="card-icon">🎱</span>
+            <div class="card-title">BALL POOL</div>
+            <div class="card-desc">Biliar 8-Ball pool melatih kefokusan. Tantang Bot sekarang!</div>
+            <span class="card-badge badge-green">1 VS 1</span>
+        </div>
+    </div>
+</div>
+
+<!-- 3D SCENE -->
+<a-scene embedded style="width:100%; height:100vh;" vr-mode-ui="enabled: false" renderer="logarithmicDepthBuffer: true">
+
+    <a-assets>
+        <img id="custom-bg" src="assets/background3D.jpeg" crossorigin="anonymous">
+    </a-assets>
+
+    <!-- Camera -->
+    <a-entity id="camera-rig" position="0 1.8 0">
+        <a-camera id="main-cam" look-controls="enabled: true; pointerLockEnabled: false" wasd-controls="enabled: false" fov="80">
+            <a-cursor raycaster="objects: .clickable" color="#a855f7" scale="0.8 0.8 0.8" opacity="0.9"></a-cursor>
+        </a-camera>
+    </a-entity>
+
+    <!-- 360 Background with 3D effect -->
+    <a-sky src="#custom-bg" rotation="0 -90 0" material="shader: flat; color: #ffffff; opacity: 1.0"></a-sky>
+
+    <!-- Lighting for 3D depth -->
+    <a-light type="ambient" intensity="0.5" color="#c9b8ff"></a-light>
+    <a-light type="directional" intensity="1.2" position="3 8 4" color="#ffffff" castShadow="true"></a-light>
+    <a-light type="point" intensity="0.8" position="0 4 -2" color="#7c3aed" distance="12"></a-light>
+    <a-light type="point" intensity="0.5" position="-4 2 0" color="#3b82f6" distance="10"></a-light>
+    <a-light type="point" intensity="0.4" position="4 2 0" color="#10b981" distance="10"></a-light>
+
+    <!-- Ground plane with glow -->
+    <a-circle position="0 -0.5 0" rotation="-90 0 0" radius="8" color="#0a0020"
+              material="opacity: 0.6; transparent: true; roughness: 0.2; metalness: 0.4"></a-circle>
+
+    <!-- Floating platform center -->
+    <a-cylinder position="0 -0.35 -2" radius="2.5" height="0.15" color="#1a0a3e"
+                material="roughness: 0.1; metalness: 0.6; emissive: #3b0a8f; emissiveIntensity: 0.15">
+    </a-cylinder>
+    <!-- Platform rim glow rings -->
+    <a-torus position="0 -0.27 -2" radius="2.5" radius-tubular="0.04" color="#7c3aed"
+             material="emissive: #7c3aed; emissiveIntensity: 0.8; roughness: 0.1"></a-torus>
+
+    <!-- GAME PORTAL PILLARS (decorative 3D) -->
+    <!-- Left Pillar -->
+    <a-cylinder position="-2 0.8 -3" radius="0.12" height="2.8" color="#1e0a4e"
+                material="roughness: 0.1; metalness: 0.8; emissive: #4c1d95; emissiveIntensity: 0.2">
+    </a-cylinder>
+    <a-sphere position="-2 2.3 -3" radius="0.2" color="#7c3aed"
+              material="emissive: #7c3aed; emissiveIntensity: 1.0; roughness: 0">
+        <a-animation attribute="material.emissiveIntensity" from="0.5" to="1.5" dur="2000" direction="alternate" repeat="indefinite"></a-animation>
+    </a-sphere>
+
+    <!-- Right Pillar -->
+    <a-cylinder position="2 0.8 -3" radius="0.12" height="2.8" color="#1e0a4e"
+                material="roughness: 0.1; metalness: 0.8; emissive: #1d4ed8; emissiveIntensity: 0.2">
+    </a-cylinder>
+    <a-sphere position="2 2.3 -3" radius="0.2" color="#3b82f6"
+              material="emissive: #3b82f6; emissiveIntensity: 1.0; roughness: 0">
+        <a-animation attribute="material.emissiveIntensity" from="0.5" to="1.5" dur="2500" direction="alternate" repeat="indefinite"></a-animation>
+    </a-sphere>
+
+    <!-- Floating rotating game icons -->
+    <a-entity position="-3.5 1.5 -3" animation="property: rotation; to: 0 360 0; dur: 12000; loop: true; easing: linear">
+        <a-box scale="0.5 0.5 0.5" color="#3498db" material="roughness: 0.2; metalness: 0.5; emissive: #1a5276; emissiveIntensity: 0.3"></a-box>
+    </a-entity>
+    <a-entity position="3.5 1.5 -3" animation="property: rotation; to: 0 -360 0; dur: 10000; loop: true; easing: linear">
+        <a-sphere radius="0.28" color="#27ae60" material="roughness: 0.1; metalness: 0.6; emissive: #1a5e37; emissiveIntensity: 0.3"></a-sphere>
+    </a-entity>
+    <a-entity position="0 3.2 -4" animation="property: rotation; to: 360 360 0; dur: 15000; loop: true; easing: linear">
+        <a-dodecahedron radius="0.3" color="#8e44ad" material="roughness: 0.1; metalness: 0.5; emissive: #6c3483; emissiveIntensity: 0.4"></a-dodecahedron>
+    </a-entity>
+
+    <!-- Floating particles -->
+    <a-entity position="-1 1.2 -2.5" animation="property: position; to: -1 1.8 -2.5; dur: 3000; dir: alternate; loop: true; easing: easeInOutSine">
+        <a-sphere radius="0.05" color="#a855f7" material="emissive: #a855f7; emissiveIntensity: 2"></a-sphere>
+    </a-entity>
+    <a-entity position="1 0.8 -2" animation="property: position; to: 1 1.5 -2; dur: 2500; dir: alternate; loop: true; easing: easeInOutSine">
+        <a-sphere radius="0.04" color="#60a5fa" material="emissive: #60a5fa; emissiveIntensity: 2"></a-sphere>
+    </a-entity>
+    <a-entity position="0.5 1.5 -3.5" animation="property: position; to: 0.5 2.2 -3.5; dur: 3500; dir: alternate; loop: true; easing: easeInOutSine">
+        <a-sphere radius="0.06" color="#4ade80" material="emissive: #4ade80; emissiveIntensity: 2"></a-sphere>
+    </a-entity>
+
+    <!-- Holographic title board -->
+    <a-entity position="0 2.8 -4">
+        <a-plane width="5" height="0.9" color="#06001a" material="opacity: 0.7; transparent: true; roughness: 0.1; metalness: 0.5; side: double"></a-plane>
+        <a-text value="🎮 GAME PORTAL 3D 🎮" align="center" width="8" color="#c084fc" font="mozillavr" position="0 0 0.02"
+                material="emissive: #c084fc; emissiveIntensity: 0.5"></a-text>
+    </a-entity>
+    <a-torus position="0 2.8 -3.99" radius="2.55" radius-tubular="0.02" color="#a855f7"
+             material="emissive: #a855f7; emissiveIntensity: 0.6; opacity: 0.6; transparent: true">
+        <a-animation attribute="material.emissiveIntensity" from="0.3" to="1.0" dur="2000" direction="alternate" repeat="indefinite"></a-animation>
+    </a-torus>
+
+    <!-- Ground particles / energy lines -->
+    <a-entity position="0 -0.3 -2">
+        <a-torus radius="1.5" radius-tubular="0.01" color="#7c3aed"
+                 material="emissive: #7c3aed; emissiveIntensity: 0.5; opacity: 0.5; transparent: true"
+                 animation="property: rotation; to: 0 360 0; dur: 8000; loop: true; easing: linear">
+        </a-torus>
+        <a-torus radius="1" radius-tubular="0.01" color="#3b82f6"
+                 material="emissive: #3b82f6; emissiveIntensity: 0.5; opacity: 0.5; transparent: true"
+                 animation="property: rotation; to: 0 -360 0; dur: 5000; loop: true; easing: linear">
+        </a-torus>
+    </a-entity>
+
+</a-scene>
+
+<script>
+    window.onload = function() {
+        const savedUser = localStorage.getItem('gameportal_username');
+        if (savedUser) {
+            document.getElementById('login-overlay').style.display = 'none';
+            enterPortal(savedUser);
+        }
+    };
+
+    function handleLogin() {
+        const user = document.getElementById('username').value.trim();
+        const pass = document.getElementById('password').value.trim();
+        if (!user || !pass) { alert('Harap isi Nama dan Password!'); return; }
+        localStorage.setItem('gameportal_username', user);
+        const overlay = document.getElementById('login-overlay');
+        overlay.style.opacity = '0';
+        setTimeout(() => { overlay.style.display = 'none'; }, 800);
+        enterPortal(user);
+    }
+
+    function enterPortal(username) {
+        document.getElementById('user-display').innerText = username;
+        document.getElementById('hud-welcome').style.display = 'block';
+        document.getElementById('click-instruction').style.display = 'block';
+        document.getElementById('game-cards-overlay').style.display = 'block';
+    }
+
+    function handleLogout() {
+        localStorage.removeItem('gameportal_username');
+        window.location.reload();
+    }
+
+    function navigateToGame(gameName) {
+    window.location.href = '/' + gameName + '/public/index.html';
+    }
+// ===== BACKSOUND LOGIN & BERANDA =====
+    const bgMusic = new Audio('/assets/beranda.mp3');
+    bgMusic.loop   = true;
+    bgMusic.volume = 0.4;
+
+    // Putar saat halaman pertama kali dimuat (login screen)
+    // Browser memerlukan interaksi user sebelum autoplay — kita mulai saat ada klik pertama
+    let musicStarted = false;
+    function tryPlayMusic() {
+        if (musicStarted) return;
+        musicStarted = true;
+        bgMusic.play().catch(() => {});
+    }
+    document.addEventListener('click', tryPlayMusic, { once: false });
+    document.addEventListener('keydown', tryPlayMusic, { once: false });
+
+    // Jika user sudah login (langsung masuk beranda), tetap putar
+    window.onload = function() {
+        const savedUser = localStorage.getItem('gameportal_username');
+        if (savedUser) {
+            document.getElementById('login-overlay').style.display = 'none';
+            enterPortal(savedUser);
+        }
+    };
+
+    function handleLogin() {
+        const user = document.getElementById('username').value.trim();
+        const pass = document.getElementById('password').value.trim();
+        if (!user || !pass) { alert('Harap isi Nama dan Password!'); return; }
+        localStorage.setItem('gameportal_username', user);
+        tryPlayMusic(); // pastikan musik mulai saat login
+        const overlay = document.getElementById('login-overlay');
+        overlay.style.opacity = '0';
+        setTimeout(() => { overlay.style.display = 'none'; }, 800);
+        enterPortal(user);
+    }
+
+    function enterPortal(username) {
+        document.getElementById('user-display').innerText = username;
+        document.getElementById('hud-welcome').style.display = 'block';
+        document.getElementById('click-instruction').style.display = 'block';
+        document.getElementById('game-cards-overlay').style.display = 'block';
+        tryPlayMusic(); // pastikan musik tetap jalan saat masuk beranda
+    }
+
+    function handleLogout() {
+        bgMusic.pause();
+        bgMusic.currentTime = 0;
+        localStorage.removeItem('gameportal_username');
+        window.location.reload();
+    }
+
+    function navigateToGame(gameName) {
+        // Biarkan musik tetap jalan saat pindah halaman (browser akan stop otomatis)
+        window.location.href = '/' + gameName + '/public/index.html';
+    }
+</script>
+</body>
+</html>

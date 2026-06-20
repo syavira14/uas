@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧠 Kuis Kilat - WePlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<script src="/socket.io/socket.io.js"></script>
+<style>
+/* ============================================================
+   BASE
+============================================================ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Nunito', sans-serif;
+  background: #000;
+  color: #fff;
+  overflow: hidden;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================================
+   SCREEN UTILITY
+============================================================ */
+.screen {
+  position: fixed; inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+.screen.active { display: flex; }
+
+/* ============================================================
+   SCREEN: SETUP (pilih mode)
+============================================================ */
+#screen-setup {
+  background: radial-gradient(ellipse at 50% 0%, #1a0a3e 0%, #000 70%);
+}
+.setup-logo {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(1.6rem, 4vw, 2.8rem);
+  font-weight: 900;
+  background: linear-gradient(135deg, #a855f7, #6366f1, #38bdf8);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 6px; text-align: center;
+}
+.setup-sub { color: #64748b; font-size: .95rem; margin-bottom: 36px; text-align: center; }
+
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  max-width: 560px;
+  width: 100%;
+  margin-bottom: 32px;
+}
+.mode-card {
+  background: rgba(255,255,255,.05);
+  border: 2px solid rgba(255,255,255,.1);
+  border-radius: 20px;
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .25s;
+  user-select: none;
+}
+.mode-card:hover, .mode-card.selected {
+  border-color: #a855f7;
+  background: rgba(168,85,247,.15);
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(168,85,247,.3);
+}
+.mode-card.selected { border-color: #a855f7; box-shadow: 0 0 0 3px rgba(168,85,247,.4), 0 16px 40px rgba(168,85,247,.3); }
+.mode-icon { font-size: 2.6rem; margin-bottom: 10px; }
+.mode-label { font-weight: 800; font-size: 1.05rem; color: #e2e8f0; }
+.mode-desc  { font-size: .78rem; color: #64748b; margin-top: 4px; }
+
+/* Player name inputs */
+#player-names-section { width: 100%; max-width: 520px; margin-bottom: 28px; }
+#player-names-section h3 { color: #94a3b8; font-size: .85rem; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+.name-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.name-row span { font-size: 1.3rem; }
+.name-input {
+  flex: 1; padding: 12px 16px;
+  background: rgba(255,255,255,.06);
+  border: 1.5px solid rgba(255,255,255,.12);
+  border-radius: 12px; color: #fff;
+  font-family: 'Nunito', sans-serif; font-size: .95rem; font-weight: 700;
+  outline: none; transition: border-color .2s;
+}
+.name-input:focus { border-color: #a855f7; }
+.name-input::placeholder { color: #475569; font-weight: 400; }
+
+.btn-start {
+  padding: 16px 56px;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  border: none; border-radius: 16px;
+  color: #fff; font-family: 'Nunito', sans-serif;
+  font-size: 1.15rem; font-weight: 900;
+  cursor: pointer; letter-spacing: 1px;
+  box-shadow: 0 6px 32px rgba(124,58,237,.5);
+  transition: all .2s;
+}
+.btn-start:hover { transform: translateY(-3px); box-shadow: 0 12px 48px rgba(124,58,237,.7); }
+
+/* ============================================================
+   SCREEN: COUNTDOWN
+============================================================ */
+#screen-countdown { background: #000; }
+.countdown-ring {
+  width: clamp(180px, 40vw, 260px);
+  height: clamp(180px, 40vw, 260px);
+  position: relative;
+}
+.countdown-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.countdown-ring circle {
+  fill: none;
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+.ring-bg  { stroke: rgba(255,255,255,.08); }
+.ring-fg  { stroke: #a855f7; stroke-dasharray: 628; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear; }
+.countdown-num {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+.countdown-digit {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(4rem, 15vw, 7rem);
+  font-weight: 900;
+  color: #fff;
+  transition: all .3s;
+  text-shadow: 0 0 60px rgba(168,85,247,.8);
+}
+.countdown-go {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(2.5rem, 8vw, 4.5rem);
+  font-weight: 900;
+  background: linear-gradient(135deg, #22c55e, #4ade80);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  display: none;
+}
+.countdown-label { color: #64748b; font-size: .9rem; margin-top: 8px; letter-spacing: 2px; }
+
+/* ============================================================
+   SCREEN: QUESTION
+============================================================ */
+#screen-question {
+  background: #000;
+  justify-content: flex-start;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Top bar */
+.q-topbar {
+  width: 100%; display: flex;
+  align-items: center; justify-content: space-between;
+  padding: 12px 20px;
+  background: rgba(255,255,255,.04);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  flex-shrink: 0;
+}
+.q-progress-info { font-size: .85rem; color: #64748b; font-weight: 700; }
+.q-soal-num { font-family: 'Orbitron', monospace; font-size: .95rem; color: #a855f7; }
+.q-timer-wrap { display: flex; align-items: center; gap: 8px; }
+.q-timer-circle {
+  width: 52px; height: 52px; position: relative;
+}
+.q-timer-circle svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.q-timer-circle circle { fill: none; stroke-width: 5; }
+.q-timer-bg { stroke: rgba(255,255,255,.1); }
+.q-timer-fg { stroke: #22c55e; stroke-dasharray: 138; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear, stroke .5s; }
+.q-timer-num {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', monospace; font-size: .85rem; font-weight: 900;
+}
+
+/* Player score strip */
+.player-strip {
+  display: flex; gap: 8px;
+  padding: 8px 16px;
+  background: rgba(0,0,0,.4);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.player-strip::-webkit-scrollbar { display: none; }
+.player-chip {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.06);
+  border: 1.5px solid rgba(255,255,255,.1);
+  border-radius: 30px;
+  padding: 6px 14px;
+  white-space: nowrap;
+  transition: all .3s;
+  flex-shrink: 0;
+}
+.player-chip.active-turn {
+  border-color: #a855f7;
+  background: rgba(168,85,247,.2);
+  box-shadow: 0 0 0 2px rgba(168,85,247,.3);
+}
+.player-chip.answered { border-color: #22c55e; background: rgba(34,197,94,.12); }
+.chip-avatar { font-size: 1.1rem; }
+.chip-name { font-weight: 800; font-size: .82rem; }
+.chip-score { font-family: 'Orbitron', monospace; font-size: .75rem; color: #f59e0b; font-weight: 700; }
+
+/* Question body */
+.q-body {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 12px 16px;
+  overflow-y: auto;
+  width: 100%;
+}
+.q-category-badge {
+  background: rgba(168,85,247,.2); border: 1px solid rgba(168,85,247,.4);
+  color: #c084fc; border-radius: 20px;
+  padding: 4px 14px; font-size: .75rem; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.q-text {
+  color: #fff;
+  font-size: clamp(1rem, 2.8vw, 1.35rem);
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.5;
+  max-width: 720px;
+  margin-bottom: 20px;
+}
+
+/* Answer grid */
+.answer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+  max-width: 760px;
+}
+@media (max-width: 500px) { .answer-grid { grid-template-columns: 1fr; } }
+
+.answer-btn {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 18px;
+  background: #7ecff7;         /* biru muda */
+  border: none; border-radius: 14px;
+  color: #000;                 /* font hitam */
+  font-family: 'Nunito', sans-serif;
+  font-size: clamp(.85rem, 2vw, 1rem);
+  font-weight: 800;
+  cursor: pointer;
+  text-align: left;
+  transition: transform .15s, box-shadow .15s, background .3s;
+  line-height: 1.3;
+  min-height: 64px;
+  box-shadow: 0 4px 0 rgba(0,0,0,.4);
+}
+.answer-btn:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 0 rgba(0,0,0,.4);
+}
+.answer-btn:disabled { cursor: not-allowed; }
+.answer-btn .ans-label {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: rgba(0,0,0,.18);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: .9rem; flex-shrink: 0;
+}
+.answer-btn .ans-text { flex: 1; }
+
+/* Answer states */
+.answer-btn.correct  { background: #16a34a !important; color: #fff !important; }
+.answer-btn.wrong    { background: #dc2626 !important; color: #fff !important; }
+.answer-btn.neutral  { background: rgba(255,255,255,.08) !important; color: #94a3b8 !important; }
+
+/* ============================================================
+   SCREEN: RESULT
+============================================================ */
+#screen-result {
+  background: radial-gradient(ellipse at 50% 0%, #0f2a18 0%, #000 70%);
+}
+.result-title {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  font-weight: 900;
+  margin-bottom: 6px;
+  text-align: center;
+}
+.result-sub { color: #64748b; margin-bottom: 32px; text-align: center; }
+
+.podium-wrap {
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 12px; margin-bottom: 32px;
+  width: 100%; max-width: 600px;
+}
+.podium-slot {
+  display: flex; flex-direction: column; align-items: center;
+  flex: 1;
+}
+.podium-avatar-wrap { position: relative; margin-bottom: 8px; }
+.podium-avatar { font-size: 2.6rem; }
+.podium-crown  { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 1.4rem; }
+.podium-name   { font-weight: 800; font-size: .9rem; text-align: center; margin-bottom: 4px; }
+.podium-score  { font-family: 'Orbitron', monospace; color: #f59e0b; font-size: .85rem; font-weight: 700; margin-bottom: 8px; }
+.podium-bar {
+  width: 100%; border-radius: 10px 10px 0 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', monospace; font-weight: 900; font-size: 1.4rem;
+  color: #fff; padding: 10px 0;
+}
+.podium-bar.p1 { background: linear-gradient(180deg,#f59e0b,#d97706); height: 110px; }
+.podium-bar.p2 { background: linear-gradient(180deg,#94a3b8,#64748b); height: 80px;  }
+.podium-bar.p3 { background: linear-gradient(180deg,#d97706,#b45309); height: 60px;  }
+.podium-bar.p4 { background: linear-gradient(180deg,#6366f1,#4f46e5); height: 50px;  }
+
+/* Full leaderboard */
+.leaderboard { width: 100%; max-width: 480px; margin-bottom: 28px; }
+.lb-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: 12px;
+  background: rgba(255,255,255,.04);
+  margin-bottom: 8px;
+}
+.lb-rank { font-family: 'Orbitron', monospace; font-size: .85rem; color: #64748b; width: 28px; text-align: center; }
+.lb-name { flex: 1; font-weight: 800; }
+.lb-score { font-family: 'Orbitron', monospace; color: #f59e0b; font-weight: 700; }
+.lb-correct { color: #22c55e; font-size: .8rem; margin-left: 4px; }
+
+.result-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.btn-result {
+  padding: 14px 36px; border: none; border-radius: 14px;
+  font-family: 'Nunito', sans-serif; font-size: 1rem; font-weight: 800;
+  cursor: pointer; transition: all .2s;
+}
+.btn-result.primary { background: linear-gradient(135deg,#7c3aed,#4f46e5); color:#fff; box-shadow:0 6px 24px rgba(124,58,237,.4); }
+.btn-result.secondary { background: rgba(255,255,255,.08); color:#e2e8f0; border: 1.5px solid rgba(255,255,255,.15); }
+.btn-result:hover { transform: translateY(-2px); }
+
+/* ============================================================
+   ANIMATIONS
+============================================================ */
+@keyframes popIn {
+  0%   { transform: scale(0.5); opacity: 0; }
+  70%  { transform: scale(1.1); }
+  100% { transform: scale(1);   opacity: 1; }
+}
+@keyframes shake {
+  0%,100%{ transform: translateX(0); }
+  25%    { transform: translateX(-6px); }
+  75%    { transform: translateX(6px); }
+}
+.pop-in { animation: popIn .4s cubic-bezier(.34,1.56,.64,1) forwards; }
+.shake  { animation: shake .35s ease; }
+
+/* Feedback flash overlay */
+#feedback-flash {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s;
+  z-index: 9999;
+}
+#feedback-flash.correct { background: rgba(34,197,94,.18); opacity: 1; }
+#feedback-flash.wrong   { background: rgba(220,38,38,.18); opacity: 1; }
+
+/* ============================================================
+   MISC
+============================================================ */
+.hidden { display: none !important; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- feedback flash -->
+<div id="feedback-flash"></div>
+
+<!-- ============================================================
+     SCREEN 1: SETUP
+============================================================ -->
+<div id="screen-setup" class="screen active">
+  <div class="setup-logo">🧠 KUIS KILAT</div>
+  <div class="setup-sub">Pilih mode permainan dan masukkan nama pemain</div>
+
+  <!-- Toggle Lokal / Online -->
+  <div class="mode-grid" style="max-width:360px;margin-bottom:18px;">
+    <div class="mode-card selected" id="playmode-local" onclick="selectPlayMode('local')">
+      <div class="mode-icon">📱</div>
+      <div class="mode-label">Lokal</div>
+      <div class="mode-desc">1 Layar bergiliran</div>
+    </div>
+    <div class="mode-card" id="playmode-online" onclick="selectPlayMode('online')">
+      <div class="mode-icon">🌐</div>
+      <div class="mode-label">Online</div>
+      <div class="mode-desc">Device terpisah (VPN/LAN)</div>
+    </div>
+  </div>
+
+  <!-- Mode selector -->
+  <div class="mode-grid" id="mode-grid-jumlah">
+    <div class="mode-card selected" data-players="1" onclick="selectMode(1)" id="card-solo">
+      <div class="mode-icon">🎮</div>
+      <div class="mode-label">Solo</div>
+      <div class="mode-desc">1 Pemain</div>
+    </div>
+    <div class="mode-card" data-players="2" onclick="selectMode(2)">
+      <div class="mode-icon">⚔️</div>
+      <div class="mode-label">Duel</div>
+      <div class="mode-desc">2 Pemain</div>
+    </div>
+    <div class="mode-card" data-players="3" onclick="selectMode(3)">
+      <div class="mode-icon">🔥</div>
+      <div class="mode-label">Trio</div>
+      <div class="mode-desc">3 Pemain</div>
+    </div>
+    <div class="mode-card" data-players="4" onclick="selectMode(4)">
+      <div class="mode-icon">🏆</div>
+      <div class="mode-label">Battle</div>
+      <div class="mode-desc">4 Pemain</div>
+    </div>
+  </div>
+
+  <!-- Player name inputs -->
+  <div id="player-names-section">
+    <h3 id="name-section-title">Nama Pemain</h3>
+    <div id="name-inputs"></div>
+  </div>
+
+  <div id="online-status" style="color:#a855f7;font-size:.85rem;margin-bottom:14px;text-align:center;display:none;"></div>
+
+  <button class="btn-start" id="btn-start-kuis" onclick="startKuis()">MULAI KUIS 🚀</button>
+</div>
+
+<!-- ============================================================
+     SCREEN ONLINE-WAIT: Menunggu pemain lain (mode Online)
+============================================================ -->
+<div id="screen-online-wait" class="screen">
+  <div class="setup-logo" style="font-size:1.6rem;">🌐 MENUNGGU PEMAIN</div>
+  <div class="setup-sub" id="online-wait-sub">Menyambungkan ke server...</div>
+  <div class="leaderboard" id="online-wait-list" style="max-width:360px;"></div>
+  <button class="btn-result secondary" onclick="batalkanOnline()">❌ Batal</button>
+</div>
+
+<!-- ============================================================
+     SCREEN 2: COUNTDOWN
+============================================================ -->
+<div id="screen-countdown" class="screen">
+  <div class="countdown-ring">
+    <svg viewBox="0 0 100 100">
+      <circle class="ring-bg" cx="50" cy="50" r="45"/>
+      <circle class="ring-fg" id="countdown-ring-fg" cx="50" cy="50" r="45"/>
+    </svg>
+    <div class="countdown-num">
+      <div class="countdown-digit" id="countdown-digit">5</div>
+      <div class="countdown-go"   id="countdown-go">MULAI!</div>
+      <div class="countdown-label" id="countdown-label">BERSIAP...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN 3: QUESTION
+============================================================ -->
+<div id="screen-question" class="screen">
+  <!-- Top bar -->
+  <div class="q-topbar">
+    <div>
+      <div class="q-soal-num" id="q-soal-num">SOAL 1/15</div>
+      <div class="q-progress-info" id="q-progress-info">0 dijawab</div>
+    </div>
+    <div class="q-timer-wrap">
+      <div class="q-timer-circle">
+        <svg viewBox="0 0 44 44">
+          <circle class="q-timer-bg" cx="22" cy="22" r="22"/>
+          <circle class="q-timer-fg" id="timer-fg" cx="22" cy="22" r="22"/>
+        </svg>
+        <div class="q-timer-num" id="timer-num">10</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player strip -->
+  <div class="player-strip" id="player-strip"></div>
+
+  <!-- Body -->
+  <div class="q-body">
+    <div class="q-category-badge" id="q-category">KATEGORI</div>
+    <div class="q-text" id="q-text">Pertanyaan...</div>
+    <div class="answer-grid" id="answer-grid"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN 4: RESULT
+============================================================ -->
+<div id="screen-result" class="screen">
+  <div class="result-title" id="result-title">🏆 HASIL KUIS!</div>
+  <div class="result-sub"   id="result-sub">Permainan selesai</div>
+  <div class="podium-wrap"  id="podium-wrap"></div>
+  <div class="leaderboard"  id="leaderboard"></div>
+  <div class="result-btns">
+    <button class="btn-result primary"   onclick="mainLagi()">🔄 Main Lagi</button>
+    <button class="btn-result secondary" onclick="kembaliMenu()">🏠 Menu Utama</button>
+  </div>
+</div>
+
+<script>
+// =============================================
+// AUDIO
+// =============================================
+const sfx = {
+  timer   : new Audio('../../assets/timer.mp3'),
+  benar   : new Audio('../../assets/kuisbenar.mp3'),
+  salah   : new Audio('../../assets/kuissalah.mp3'),
+  menang  : new Audio('../../assets/menang.mp3'),
+  kalah   : new Audio('../../assets/kalah.mp3'),
+};
+Object.values(sfx).forEach(a => a.volume = 0.85);
+sfx.timer.volume = 0.6;
+
+function play(key) {
+  try { sfx[key].currentTime = 0; sfx[key].play(); } catch(e) {}
+}
+function stopAll() {
+  Object.values(sfx).forEach(a => { try { a.pause(); a.currentTime = 0; } catch(e){} });
+}
+
+// =============================================
+// 50 SOAL BANK
+// =============================================
+const SOAL_BANK = [
+  // MATEMATIKA (10)
+  { k:'Matematika', q:'Berapa hasil dari 15 × 8?',                                         a:['120','110','125','130'],         j:0 },
+  { k:'Matematika', q:'Berapakah akar kuadrat dari 144?',                                   a:['11','12','13','14'],             j:1 },
+  { k:'Matematika', q:'Hasil dari 2³ + 3² adalah ...',                                      a:['17','15','19','16'],             j:0 },
+  { k:'Matematika', q:'Jika x + 7 = 15, maka x = ...',                                     a:['6','7','8','9'],                 j:2 },
+  { k:'Matematika', q:'Luas lingkaran dengan jari-jari 7 cm (π = 22/7) adalah ...',         a:['154 cm²','144 cm²','132 cm²','168 cm²'], j:0 },
+  { k:'Matematika', q:'Berapa FPB dari 36 dan 48?',                                         a:['6','8','10','12'],              j:3 },
+  { k:'Matematika', q:'Nilai dari 5! (5 faktorial) adalah ...',                              a:['60','100','120','150'],          j:2 },
+  { k:'Matematika', q:'Jika suatu segitiga memiliki alas 10 cm dan tinggi 6 cm, luasnya adalah ...', a:['25 cm²','30 cm²','40 cm²','60 cm²'], j:1 },
+  { k:'Matematika', q:'Berapakah KPK dari 4 dan 6?',                                        a:['8','12','16','24'],             j:1 },
+  { k:'Matematika', q:'Hasil dari 1000 ÷ 25 adalah ...',                                    a:['30','35','40','45'],            j:2 },
+
+  // IPA (10)
+  { k:'IPA',        q:'Planet terbesar dalam tata surya adalah ...',                         a:['Saturnus','Jupiter','Uranus','Neptunus'], j:1 },
+  { k:'IPA',        q:'Zat kimia yang dihasilkan saat proses fotosintesis adalah ...',       a:['CO₂ dan H₂O','O₂ dan glukosa','H₂O dan glukosa','O₂ dan CO₂'], j:1 },
+  { k:'IPA',        q:'Satuan kecepatan dalam SI adalah ...',                                a:['km/jam','m/s','cm/s','knot'],   j:1 },
+  { k:'IPA',        q:'Gaya yang bekerja ke bawah pada semua benda bermassa disebut ...',    a:['Gaya gesek','Gaya magnet','Gaya gravitasi','Gaya normal'], j:2 },
+  { k:'IPA',        q:'Hewan yang berkembang biak dengan cara bertelur disebut ...',         a:['Vivipar','Ovovivipar','Ovipar','Metamorfosis'], j:2 },
+  { k:'IPA',        q:'Unsur dengan lambang kimia Fe adalah ...',                            a:['Tembaga','Perak','Emas','Besi'], j:3 },
+  { k:'IPA',        q:'Proses perubahan air menjadi uap air disebut ...',                    a:['Kondensasi','Evaporasi','Sublimasi','Deposisi'], j:1 },
+  { k:'IPA',        q:'Lapisan atmosfer yang paling dekat dengan permukaan bumi adalah ...',  a:['Stratosfer','Mesosfer','Termosfer','Troposfer'], j:3 },
+  { k:'IPA',        q:'Kecepatan cahaya di ruang hampa kurang lebih ...',                    a:['300.000 km/s','150.000 km/s','200.000 km/s','250.000 km/s'], j:0 },
+  { k:'IPA',        q:'Tulang yang berfungsi melindungi otak adalah ...',                    a:['Tulang rusuk','Tulang belakang','Tulang tengkorak','Tulang panggul'], j:2 },
+
+  // IPS (10)
+  { k:'IPS',        q:'Ibukota negara Indonesia adalah ...',                                  a:['Bandung','Jakarta','Surabaya','Medan'], j:1 },
+  { k:'IPS',        q:'Proklamasi kemerdekaan Indonesia dibacakan pada tanggal ...',          a:['17 Agustus 1945','17 Agustus 1944','17 Juli 1945','18 Agustus 1945'], j:0 },
+  { k:'IPS',        q:'Sungai terpanjang di dunia adalah ...',                                a:['Amazon','Mississippi','Nil','Yangtze'], j:2 },
+  { k:'IPS',        q:'Pulau terbesar di Indonesia adalah ...',                               a:['Jawa','Sulawesi','Sumatra','Kalimantan'], j:3 },
+  { k:'IPS',        q:'Organisasi Perserikatan Bangsa-Bangsa (PBB) didirikan pada tahun ...',  a:['1943','1944','1945','1946'], j:2 },
+  { k:'IPS',        q:'Siapa presiden pertama Republik Indonesia?',                           a:['Mohammad Hatta','Soekarno','Soeharto','Habibie'], j:1 },
+  { k:'IPS',        q:'Gunung berapi tertinggi di Indonesia adalah ...',                      a:['Gunung Merapi','Gunung Semeru','Gunung Rinjani','Gunung Kerinci'], j:1 },
+  { k:'IPS',        q:'Mata uang resmi Jepang adalah ...',                                    a:['Yuan','Won','Yen','Baht'], j:2 },
+  { k:'IPS',        q:'Benua yang tidak memiliki penduduk asli permanen adalah ...',          a:['Arktik','Antartika','Australia','Afrika'], j:1 },
+  { k:'IPS',        q:'Peta yang menggambarkan persebaran penduduk disebut peta ...',         a:['Topografi','Tematik','Korografi','Kadaster'], j:1 },
+
+  // Bahasa Indonesia (10)
+  { k:'Bahasa Indonesia', q:'Apa yang dimaksud dengan antonim?',                              a:['Kata bersinonim','Kata berlawanan makna','Kata bermakna ganda','Kata ulang'], j:1 },
+  { k:'Bahasa Indonesia', q:'Kalimat yang mengandung pertanyaan diakhiri dengan tanda ...',   a:['Seru (!)','Titik (.)','Tanya (?)','Koma (,)'], j:2 },
+  { k:'Bahasa Indonesia', q:'Kata "berlari" termasuk kata ...',                               a:['Kata benda','Kata kerja','Kata sifat','Kata keterangan'], j:1 },
+  { k:'Bahasa Indonesia', q:'Puisi yang terdiri dari empat baris dan bersajak a-b-a-b disebut ...', a:['Pantun','Syair','Gurindam','Soneta'], j:0 },
+  { k:'Bahasa Indonesia', q:'Imbuhan "me-" pada kata "membaca" berfungsi membentuk ...',     a:['Kata benda','Kata kerja aktif','Kata sifat','Kata keterangan'], j:1 },
+  { k:'Bahasa Indonesia', q:'Sinonim dari kata "gembira" adalah ...',                         a:['Sedih','Marah','Bahagia','Takut'], j:2 },
+  { k:'Bahasa Indonesia', q:'Kalimat yang berisi perintah disebut kalimat ...',               a:['Tanya','Berita','Perintah/Imperatif','Seruan'], j:2 },
+  { k:'Bahasa Indonesia', q:'Tanda baca yang digunakan untuk memisahkan perincian adalah ...', a:['Titik (.)','Koma (,)','Titik koma (;)','Tanda hubung (-)'], j:1 },
+  { k:'Bahasa Indonesia', q:'Awalan "ber-" pada kata "bermain" menunjukkan makna ...',       a:['Melakukan kegiatan','Menjadi','Saling','Sangat'], j:0 },
+  { k:'Bahasa Indonesia', q:'Bagian karangan yang berisi kesimpulan disebut ...',             a:['Pendahuluan','Isi','Penutup','Abstrak'], j:2 },
+
+  // Teknologi & Umum (10)
+  { k:'Teknologi', q:'HTML adalah singkatan dari ...',                                        a:['HyperText Markup Language','HyperText Making Language','HighText Markup Language','HyperText Machine Language'], j:0 },
+  { k:'Teknologi', q:'CPU merupakan singkatan dari ...',                                      a:['Central Process Unit','Central Processing Unit','Computer Processing Unit','Core Processing Unit'], j:1 },
+  { k:'Teknologi', q:'Siapa pendiri Microsoft?',                                              a:['Steve Jobs','Mark Zuckerberg','Bill Gates','Elon Musk'], j:2 },
+  { k:'Teknologi', q:'Satuan penyimpanan data terbesar di bawah ini adalah ...',              a:['Gigabyte','Terabyte','Megabyte','Petabyte'], j:3 },
+  { k:'Teknologi', q:'Bahasa pemrograman yang sering digunakan untuk web adalah ...',         a:['Python','Java','JavaScript','C++'], j:2 },
+  { k:'Teknologi', q:'WWW merupakan singkatan dari ...',                                      a:['World Wide Web','World Web Work','Wide World Web','Web World Wide'], j:0 },
+  { k:'Teknologi', q:'Tombol keyboard yang digunakan untuk menghapus karakter di sebelah kiri kursor adalah ...', a:['Delete','Backspace','Escape','Enter'], j:1 },
+  { k:'Teknologi', q:'Perangkat keras yang berfungsi untuk mencetak dokumen adalah ...',      a:['Scanner','Monitor','Printer','Speaker'], j:2 },
+  { k:'Teknologi', q:'Ekstensi file gambar yang umum digunakan adalah ...',                   a:['.mp3','.docx','.jpg','.xlsx'], j:2 },
+  { k:'Teknologi', q:'RAM merupakan singkatan dari ...',                                      a:['Random Access Memory','Read Access Memory','Random Active Memory','Read Active Memory'], j:0 },
+];
+
+// =============================================
+// GAME STATE
+// =============================================
+const AVATARS = ['👤','👩','🧑','👦','👧','🦊','🐯','🦁'];
+const TOTAL_SOAL = 15;
+const WAKTU_PER_SOAL = 10;
+
+let numPlayers = 1;
+let players    = [];      // { name, avatar, score, correctCount, id? }
+let soalList   = [];      // 15 soal acak
+let soalIdx    = 0;
+let timerInterval = null;
+let timerSisa  = WAKTU_PER_SOAL;
+let currentAnswered = []; // bool per player, apakah sudah jawab di soal ini
+let gamePhase  = 'setup'; // 'setup' | 'countdown' | 'question' | 'result'
+
+// ---- ONLINE STATE ----
+let playMode   = 'local'; // 'local' | 'online'
+let socket     = null;
+let roomId     = null;
+let isHost     = false;
+let myId       = null;    // socket.id milik kita
+let myAnswered = false;   // sudah jawab soal ini (online)
+
+// =============================================
+// SCREEN HELPER
+// =============================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// =============================================
+// SETUP
+// =============================================
+function selectPlayMode(mode) {
+  playMode = mode;
+  document.getElementById('playmode-local').classList.toggle('selected', mode === 'local');
+  document.getElementById('playmode-online').classList.toggle('selected', mode === 'online');
+  document.getElementById('card-solo').style.display = mode === 'online' ? 'none' : '';
+  document.getElementById('online-status').style.display = 'none';
+  if (mode === 'online' && numPlayers === 1) selectMode(2);
+  document.getElementById('name-section-title').textContent =
+    mode === 'online' ? 'Nama Anda' : 'Nama Pemain';
+  document.getElementById('btn-start-kuis').textContent =
+    mode === 'online' ? 'CARI LAWAN 🔍' : 'MULAI KUIS 🚀';
+  renderNameInputs();
+}
+
+function selectMode(n) {
+  numPlayers = n;
+  document.querySelectorAll('#mode-grid-jumlah .mode-card').forEach(c => {
+    c.classList.toggle('selected', parseInt(c.dataset.players) === n);
+  });
+  renderNameInputs();
+}
+
+function renderNameInputs() {
+  const cont = document.getElementById('name-inputs');
+  cont.innerHTML = '';
+  const n = playMode === 'online' ? 1 : numPlayers; // online: hanya input nama sendiri
+  for (let i = 0; i < n; i++) {
+    cont.innerHTML += `
+      <div class="name-row">
+        <span>${AVATARS[i]}</span>
+        <input class="name-input" id="name-${i}"
+          placeholder="Pemain ${i+1}" maxlength="20"
+          value="${players[i]?.name || ''}">
+      </div>`;
+  }
+}
+
+// init
+renderNameInputs();
+
+function startKuis() {
+  if (playMode === 'online') {
+    startKuisOnline();
+    return;
+  }
+  players = [];
+  for (let i = 0; i < numPlayers; i++) {
+    const v = document.getElementById('name-'+i)?.value.trim();
+    players.push({
+      name: v || `Pemain ${i+1}`,
+      avatar: AVATARS[i],
+      score: 0,
+      correctCount: 0,
+    });
+  }
+
+  // Pilih 15 soal acak
+  const shuffled = [...SOAL_BANK].sort(() => Math.random() - 0.5);
+  soalList = shuffled.slice(0, TOTAL_SOAL);
+  soalIdx  = 0;
+
+  showScreen('screen-countdown');
+  runCountdown();
+}
+
+// =============================================
+// MODE ONLINE (Multiplayer via VPN/LAN, device terpisah)
+// =============================================
+function startKuisOnline() {
+  const namaSaya = document.getElementById('name-0')?.value.trim() || 'Pemain';
+  const statusEl = document.getElementById('online-status');
+  statusEl.style.display = 'block';
+  statusEl.textContent = '⏳ Menyambungkan ke server...';
+
+  if (!socket) {
+    socket = io();
+    setupSocketListeners();
+  }
+
+  socket.connect ? socket.connect() : null;
+
+  socket.off('connect_error').on('connect_error', () => {
+    statusEl.textContent = '❌ Gagal terhubung ke server. Pastikan OpenVPN aktif & alamat server benar.';
+  });
+
+  socket.emit('kuis_join', { username: namaSaya, numPlayers });
+
+  showScreen('screen-online-wait');
+  document.getElementById('online-wait-sub').textContent = `Menunggu pemain (0/${numPlayers})...`;
+  document.getElementById('online-wait-list').innerHTML = '';
+}
+
+function batalkanOnline() {
+  if (socket) socket.disconnect();
+  showScreen('screen-setup');
+}
+
+function setupSocketListeners() {
+  myId = null;
+  socket.on('connect', () => { myId = socket.id; });
+
+  socket.on('kuis_error', (d) => {
+    document.getElementById('online-status').textContent = '❌ ' + d.msg;
+    showScreen('screen-setup');
+  });
+
+  socket.on('kuis_playerList', (d) => {
+    roomId = d.roomId;
+    isHost = d.hostId === socket.id;
+    document.getElementById('online-wait-sub').textContent =
+      `Menunggu pemain (${d.current}/${d.target})...`;
+    const list = document.getElementById('online-wait-list');
+    list.innerHTML = d.players.map(p => `
+      <div class="lb-row">
+        <div style="font-size:1.3rem">👤</div>
+        <div class="lb-name">${p.username}${p.id===socket.id?' (Anda)':''}</div>
+      </div>`).join('');
+
+    // Host menyiapkan soal & mengirim ke server saat room penuh
+    if (isHost && d.current === d.target) {
+      const shuffled = [...SOAL_BANK].sort(() => Math.random() - 0.5);
+      const onlineSoal = shuffled.slice(0, TOTAL_SOAL);
+      socket.emit('kuis_setSoal', { roomId, soalList: onlineSoal });
+    }
+  });
+
+  socket.on('kuis_startCountdown', () => {
+    showScreen('screen-countdown');
+    runCountdown(true); // true = mode online, setelah selesai akan emit kuis_countdownDone
+  });
+
+  socket.on('kuis_newSoal', (d) => {
+    onlineRenderSoal(d);
+  });
+
+  socket.on('kuis_playerAnswered', (d) => {
+    // tandai chip pemain yg sudah menjawab
+    const idx = players.findIndex(p => p.id === d.socketId);
+    if (idx > -1) {
+      currentAnswered[idx] = true;
+      renderPlayerStrip(true);
+    }
+    document.getElementById('q-progress-info').textContent =
+      `${d.answeredCount}/${d.totalPlayers} sudah menjawab`;
+  });
+
+  socket.on('kuis_reveal', (d) => {
+    clearInterval(timerInterval);
+    // update skor dari server (sumber kebenaran)
+    players.forEach(p => {
+      const s = d.scores[p.id];
+      if (s) { p.score = s.score; p.correctCount = s.correctCount; }
+    });
+    const myPilihan = d.answers[myId];
+    showJawaban(myPilihan === undefined ? -1 : myPilihan, d.correct);
+  });
+
+  socket.on('kuis_gameOver', (d) => {
+    stopAll();
+    const sorted = d.hasil.map(h => ({
+      name: h.username, avatar: '👤', score: h.score, correctCount: h.correctCount, id: h.socketId,
+    }));
+    const aku = sorted.find(p => p.id === myId);
+    if (aku && sorted[0].id === myId) play('menang'); else play('kalah');
+    showScreen('screen-result');
+    renderResult(sorted);
+  });
+
+  socket.on('kuis_playerLeft', (d) => {
+    document.getElementById('online-status').style.display = 'block';
+    document.getElementById('online-status').textContent = '⚠️ Seorang pemain keluar dari room.';
+  });
+}
+
+function onlineRenderSoal(d) {
+  showScreen('screen-question');
+  // sinkronkan daftar pemain (untuk strip skor) dari data soal
+  players = d.players.map(p => ({
+    name: p.username, avatar: '👤',
+    score: (d.scores[p.id]||{}).score || 0,
+    correctCount: (d.scores[p.id]||{}).correctCount || 0,
+    id: p.id,
+  }));
+  soalIdx = d.soalIdx;
+  myAnswered = false;
+  currentAnswered = new Array(players.length).fill(false);
+
+  document.getElementById('q-soal-num').textContent      = `SOAL ${d.soalIdx+1}/${d.total}`;
+  document.getElementById('q-progress-info').textContent  = `0/${players.length} sudah menjawab`;
+  document.getElementById('q-category').textContent       = d.soal.k;
+  document.getElementById('q-text').textContent           = d.soal.q;
+
+  renderPlayerStrip(false);
+
+  const grid = document.getElementById('answer-grid');
+  const labels = ['A','B','C','D'];
+  grid.innerHTML = '';
+  d.soal.a.forEach((teks, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'answer-btn pop-in';
+    btn.style.animationDelay = (i * 0.07) + 's';
+    btn.innerHTML = `<span class="ans-label">${labels[i]}</span><span class="ans-text">${teks}</span>`;
+    btn.onclick = () => pilihJawabanOnline(i, d.soalIdx);
+    grid.appendChild(btn);
+  });
+
+  timerSisa = d.waktu;
+  updateTimerUI(timerSisa);
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timerSisa--;
+    updateTimerUI(Math.max(timerSisa,0));
+    if (timerSisa <= 0) clearInterval(timerInterval);
+  }, 1000);
+}
+
+function pilihJawabanOnline(pilihanIdx, soalIdxSaatJawab) {
+  if (myAnswered) return;
+  myAnswered = true;
+  document.querySelectorAll('.answer-btn').forEach((b,i) => {
+    if (i === pilihanIdx) b.style.outline = '3px solid #a855f7';
+    b.disabled = true;
+  });
+  socket.emit('kuis_answer', { roomId, soalIdx: soalIdxSaatJawab, pilihanIdx });
+}
+
+// =============================================
+// COUNTDOWN
+// =============================================
+function runCountdown(online) {
+  stopAll();
+  let count = 5;
+  const digit  = document.getElementById('countdown-digit');
+  const goEl   = document.getElementById('countdown-go');
+  const label  = document.getElementById('countdown-label');
+  const ringFg = document.getElementById('countdown-ring-fg');
+  const circumf = 2 * Math.PI * 45; // r=45
+
+  digit.style.display = '';
+  goEl.style.display  = 'none';
+  label.textContent   = 'BERSIAP...';
+
+  // play timer sound once at start
+  play('timer');
+
+  function tick() {
+    digit.classList.remove('pop-in');
+    void digit.offsetWidth;
+    digit.classList.add('pop-in');
+    digit.textContent = count;
+
+    // ring animation: shrink as count decreases
+    const pct = count / 5;
+    ringFg.style.strokeDashoffset = circumf * (1 - pct);
+
+    if (count === 0) {
+      // Show MULAI!
+      digit.style.display = 'none';
+      goEl.style.display  = '';
+      goEl.classList.remove('pop-in');
+      void goEl.offsetWidth;
+      goEl.classList.add('pop-in');
+      label.textContent = '';
+      setTimeout(() => {
+        if (online) socket.emit('kuis_countdownDone', { roomId });
+        else beginQuestion();
+      }, 900);
+      return;
+    }
+    count--;
+    setTimeout(tick, 1000);
+  }
+  tick();
+}
+
+// =============================================
+// QUESTION PHASE
+// =============================================
+function beginQuestion() {
+  showScreen('screen-question');
+  renderSoal();
+}
+
+function renderSoal() {
+  clearInterval(timerInterval);
+  if (soalIdx >= soalList.length) { endGame(); return; }
+
+  const s = soalList[soalIdx];
+  currentAnswered = new Array(numPlayers).fill(false);
+
+  // Header
+  document.getElementById('q-soal-num').textContent      = `SOAL ${soalIdx+1}/${TOTAL_SOAL}`;
+  document.getElementById('q-progress-info').textContent  = `${soalIdx} sudah selesai`;
+  document.getElementById('q-category').textContent       = s.k;
+  document.getElementById('q-text').textContent           = s.q;
+
+  // Player strip
+  renderPlayerStrip(false);
+
+  // Answers
+  const grid = document.getElementById('answer-grid');
+  const labels = ['A','B','C','D'];
+  const colors  = ['#7ecff7','#7ecff7','#7ecff7','#7ecff7'];
+  grid.innerHTML = '';
+  s.a.forEach((teks, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'answer-btn pop-in';
+    btn.style.animationDelay = (i * 0.07) + 's';
+    btn.innerHTML = `<span class="ans-label">${labels[i]}</span><span class="ans-text">${teks}</span>`;
+    btn.onclick = () => pilihJawaban(i);
+    grid.appendChild(btn);
+  });
+
+  // Timer
+  timerSisa = WAKTU_PER_SOAL;
+  updateTimerUI(timerSisa);
+  timerInterval = setInterval(() => {
+    timerSisa--;
+    updateTimerUI(timerSisa);
+    if (timerSisa <= 0) {
+      clearInterval(timerInterval);
+      showJawaban(-1); // waktu habis
+    }
+  }, 1000);
+}
+
+function renderPlayerStrip(showAnswered) {
+  const strip = document.getElementById('player-strip');
+  strip.innerHTML = '';
+  players.forEach((p, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'player-chip' +
+      (showAnswered && currentAnswered[i] ? ' answered' : '');
+    chip.innerHTML = `
+      <span class="chip-avatar">${p.avatar}</span>
+      <span class="chip-name">${p.name}</span>
+      <span class="chip-score">+${p.score}</span>`;
+    strip.appendChild(chip);
+  });
+}
+
+function updateTimerUI(sisa) {
+  const circumf = 2 * Math.PI * 22; // r=22
+  const fg  = document.getElementById('timer-fg');
+  const num = document.getElementById('timer-num');
+  num.textContent = sisa;
+
+  const pct = sisa / WAKTU_PER_SOAL;
+  fg.style.strokeDashoffset = circumf * (1 - pct);
+
+  // color shift
+  if (sisa > 6)       { fg.style.stroke = '#22c55e'; num.style.color = '#22c55e'; }
+  else if (sisa > 3)  { fg.style.stroke = '#f59e0b'; num.style.color = '#f59e0b'; }
+  else                { fg.style.stroke = '#ef4444'; num.style.color = '#ef4444'; }
+}
+
+// Pada mode solo: siapapun bisa langsung klik.
+// Pada mode multi: semua pemain di perangkat yang sama — klik pertama dihitung untuk siapa?
+// Kita pakai model: satu perangkat bersama, siapa cepat dia yang menjawab (tapi semua bisa jawab sekali).
+// Karena multi-player lokal (satu layar), kita assign jawaban ke pemain yg belum jawab (urutan).
+
+let pendingPlayerIdx = 0; // untuk multi-player lokal: giliran siapa yang akan menjawab
+
+function pilihJawaban(pilihanIdx) {
+  // Cari pemain yang belum jawab
+  const playerIdx = currentAnswered.findIndex(v => !v);
+  if (playerIdx === -1) return; // semua sudah jawab
+
+  currentAnswered[playerIdx] = true;
+
+  const benar = soalList[soalIdx].j === pilihanIdx;
+  const poin  = benar ? Math.max(100, 100 + timerSisa * 10) : 0;
+
+  if (benar) {
+    players[playerIdx].score        += poin;
+    players[playerIdx].correctCount += 1;
+    play('benar');
+    flashFeedback('correct');
+  } else {
+    play('salah');
+    flashFeedback('wrong');
+  }
+
+  renderPlayerStrip(true);
+
+  // Jika semua sudah jawab atau hanya 1 pemain → tampilkan jawaban
+  if (currentAnswered.every(v => v)) {
+    clearInterval(timerInterval);
+    showJawaban(pilihanIdx);
+  }
+  // Jika masih ada yang belum, beri petunjuk visual & lanjut
+  else {
+    // Tunjukkan feedback sebentar lalu reset warna btn
+    // (jawaban belum dibuka sampai semua jawab atau waktu habis)
+    highlightPlayerBtn(pilihanIdx, benar);
+  }
+}
+
+function highlightPlayerBtn(pilihanIdx, benar) {
+  // Tidak ubah warna jawaban dulu kalau masih ada yang belum jawab
+  // (agar tidak spoiler jawaban benar)
+}
+
+function showJawaban(pilihanUser, correctIdxOverride) {
+  clearInterval(timerInterval);
+  const correctIdx = correctIdxOverride !== undefined ? correctIdxOverride : soalList[soalIdx].j;
+  const btns = document.querySelectorAll('.answer-btn');
+
+  btns.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === correctIdx) {
+      btn.classList.add('correct');
+    } else if (i === pilihanUser && pilihanUser !== correctIdx && pilihanUser !== -1) {
+      btn.classList.add('wrong');
+    } else {
+      btn.classList.add('neutral');
+    }
+  });
+
+  renderPlayerStrip(false);
+
+  // Mode lokal: client sendiri yang lanjut ke soal berikutnya.
+  // Mode online: server yang mengatur jadwal soal berikutnya (kuis_newSoal/kuis_gameOver).
+  if (playMode !== 'online') {
+    setTimeout(() => {
+      soalIdx++;
+      renderSoal();
+    }, 1800);
+  }
+}
+
+function flashFeedback(type) {
+  const el = document.getElementById('feedback-flash');
+  el.className = type;
+  setTimeout(() => el.className = '', 500);
+}
+
+// =============================================
+// END GAME
+// =============================================
+function endGame() {
+  clearInterval(timerInterval);
+  stopAll();
+
+  // Sort players by score desc
+  const sorted = [...players].sort((a, b) => b.score - a.score);
+
+  // Sound
+  if (numPlayers === 1) {
+    play('menang'); // solo selalu menang
+  } else {
+    // Cek apakah pemain 1 (index 0) adalah pemenang
+    if (sorted[0].name === players[0].name) play('menang');
+    else play('kalah');
+  }
+
+  showScreen('screen-result');
+  renderResult(sorted);
+}
+
+function renderResult(sorted) {
+  const title = document.getElementById('result-title');
+  const sub   = document.getElementById('result-sub');
+
+  if (numPlayers === 1) {
+    const p = sorted[0];
+    title.textContent = `🏆 SELESAI!`;
+    sub.textContent   = `Skor kamu: ${p.score} poin · ${p.correctCount}/${TOTAL_SOAL} benar`;
+  } else {
+    title.textContent = `🏆 ${sorted[0].name} MENANG!`;
+    sub.textContent   = `Permainan selesai · ${TOTAL_SOAL} soal`;
+  }
+
+  // Podium (maks 4)
+  const podium = document.getElementById('podium-wrap');
+  podium.innerHTML = '';
+
+  // Urutan visual podium: 2-1-3(-4)
+  const podiumOrder = numPlayers >= 3
+    ? (numPlayers === 4 ? [1,0,2,3] : [1,0,2])
+    : [0, ...(sorted.length > 1 ? [1] : [])];
+  const barClass = ['p1','p2','p3','p4'];
+  const medals   = ['🥇','🥈','🥉','🎖️'];
+
+  podiumOrder.forEach(rankIdx => {
+    const p = sorted[rankIdx];
+    if (!p) return;
+    const slot = document.createElement('div');
+    slot.className = 'podium-slot';
+    slot.innerHTML = `
+      <div class="podium-avatar-wrap">
+        ${rankIdx === 0 ? '<div class="podium-crown">👑</div>' : ''}
+        <div class="podium-avatar">${p.avatar}</div>
+      </div>
+      <div class="podium-name">${p.name}</div>
+      <div class="podium-score">${p.score} pts</div>
+      <div class="podium-bar ${barClass[rankIdx]}">${medals[rankIdx]}</div>`;
+    podium.appendChild(slot);
+  });
+
+  // Leaderboard
+  const lb = document.getElementById('leaderboard');
+  lb.innerHTML = '';
+  sorted.forEach((p, i) => {
+    lb.innerHTML += `
+      <div class="lb-row">
+        <div class="lb-rank">${i+1}</div>
+        <div style="font-size:1.3rem">${p.avatar}</div>
+        <div class="lb-name">${p.name}</div>
+        <div class="lb-score">${p.score} <span class="lb-correct">${p.correctCount}/${TOTAL_SOAL} ✓</span></div>
+      </div>`;
+  });
+}
+
+// =============================================
+// NAVIGATION
+// =============================================
+function mainLagi() {
+  if (playMode === 'online') { kembaliMenu(); return; }
+  stopAll();
+  // Reset scores tapi tetap nama & mode sama
+  players.forEach(p => { p.score = 0; p.correctCount = 0; });
+  // Acak ulang soal
+  const shuffled = [...SOAL_BANK].sort(() => Math.random() - 0.5);
+  soalList = shuffled.slice(0, TOTAL_SOAL);
+  soalIdx  = 0;
+  showScreen('screen-countdown');
+  runCountdown();
+}
+
+function kembaliMenu() {
+  stopAll();
+  if (socket && playMode === 'online') socket.disconnect();
+  socket = null;
+  playMode = 'local';
+  showScreen('screen-setup');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,846 @@
+!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Dakron — Congklak 3D</title>
+<script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{overflow:hidden;background:#000;font-family:'Crimson Pro',serif;user-select:none;}
+a-scene{position:fixed!important;top:0;left:0;width:100%;height:100%;z-index:0;}
+#board-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:10;pointer-events:none;}
+
+/* HOME */
+#home-screen{
+  position:fixed;inset:0;z-index:1000;
+  background:radial-gradient(ellipse at 50% 60%,#1a0e00 0%,#000 65%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;
+}
+.menu-title{
+  font-family:'Cinzel',serif;font-size:38px;font-weight:900;letter-spacing:6px;
+  background:linear-gradient(135deg,#b8732a,#f0c060,#c8860a);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;
+}
+.menu-sub{color:#5a3e18;font-size:14px;letter-spacing:3px;margin-bottom:32px;}
+.stats-box{background:rgba(184,115,42,.07);border:1px solid rgba(184,115,42,.2);border-radius:16px;padding:16px 44px;margin-bottom:30px;text-align:center;}
+.stats-box .snum{font-family:'Cinzel',serif;font-size:30px;color:#f0c060;}
+.stats-box .slbl{font-size:11px;color:#5a3e18;letter-spacing:3px;text-transform:uppercase;margin-top:2px;}
+.sec-lbl{font-size:10px;color:#3a2810;letter-spacing:4px;text-transform:uppercase;margin:14px 0 5px;}
+.btn-home{width:300px;padding:15px;font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:#fff;border:none;border-radius:12px;cursor:pointer;letter-spacing:2px;margin:5px 0;transition:all .25s;}
+.btn-bot{background:linear-gradient(135deg,#b8732a,#7a4a10);box-shadow:0 4px 24px rgba(184,115,42,.35);}
+.btn-online{background:linear-gradient(135deg,#5a2d8a,#2d105a);box-shadow:0 4px 24px rgba(90,45,138,.35);}
+.btn-back{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#4a3418;font-family:'Crimson Pro',serif;font-size:13px;width:auto;padding:10px 28px;margin-top:18px;border-radius:10px;cursor:pointer;}
+.btn-home:hover,.btn-back:hover{transform:translateY(-2px);filter:brightness(1.18);}
+#wait-info{color:#5a2d8a;font-size:14px;margin-top:10px;display:none;}
+
+/* HUD */
+#game-hud{display:none;position:fixed;inset:0;z-index:20;pointer-events:none;}
+.pcard{position:absolute;top:18px;background:rgba(0,0,0,.82);border:2px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 22px;text-align:center;min-width:164px;transition:border-color .3s,box-shadow .3s;}
+#card-p1{left:18px;}
+#card-p2{right:18px;}
+.pcard.active{border-color:#f0c060;box-shadow:0 0 22px rgba(240,192,96,.45);}
+.pcard-name{font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:1px;}
+.pcard-score{font-family:'Cinzel',serif;font-size:26px;font-weight:900;color:#f0c060;margin:3px 0;}
+.pcard-lbl{font-size:10px;color:#555;letter-spacing:2px;text-transform:uppercase;}
+#card-p1 .pcard-name{color:#c8860a;}
+#card-p2 .pcard-name{color:#8b5cf6;}
+
+/* Timer */
+#timer-wrap{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:5px;}
+#timer-svg{transform:rotate(-90deg);}
+#timer-svg circle.bg{fill:none;stroke:#1a1a1a;stroke-width:5;}
+#timer-svg circle.fg{fill:none;stroke:#f0c060;stroke-width:5;stroke-dasharray:163;stroke-dashoffset:0;transition:stroke-dashoffset .9s linear,stroke .3s;}
+#timer-num{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Cinzel',serif;font-size:18px;font-weight:900;color:#f0c060;}
+#turn-lbl{font-size:10px;color:#666;letter-spacing:2px;text-transform:uppercase;}
+
+#toast{position:absolute;bottom:12%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.92);color:#f0c060;padding:10px 28px;border-radius:20px;font-weight:600;font-size:14px;border:1px solid rgba(240,192,96,.3);display:none;white-space:nowrap;pointer-events:none;letter-spacing:.5px;}
+#bot-tag{display:none;position:absolute;top:90px;left:50%;transform:translateX(-50%);background:rgba(90,45,138,.15);border:1px solid rgba(90,45,138,.4);color:#9b59b6;padding:7px 22px;border-radius:20px;font-size:13px;font-weight:600;pointer-events:none;}
+
+/* GAME OVER */
+#go-modal{display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.92);align-items:center;justify-content:center;pointer-events:all;}
+.go-box{background:#080808;border:2px solid #1a1a1a;border-radius:24px;padding:48px 56px;text-align:center;max-width:380px;width:90%;}
+.go-ico{font-size:56px;margin-bottom:10px;}
+.go-ttl{font-family:'Cinzel',serif;font-size:22px;font-weight:900;color:#fff;margin-bottom:6px;}
+.go-sub{color:#444;font-size:13px;margin-bottom:26px;}
+.go-scores{display:flex;gap:16px;justify-content:center;margin-bottom:28px;}
+.go-sbox{padding:14px 20px;border-radius:14px;text-align:center;min-width:106px;}
+.go-sbox .gn{font-size:10px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;}
+.go-sbox .gv{font-family:'Cinzel',serif;font-size:28px;font-weight:900;}
+#go-s1{background:rgba(200,134,10,.1);border:1px solid rgba(200,134,10,.2);}
+#go-s1 .gn{color:#c8860a;}#go-s1 .gv{color:#f0c060;}
+#go-s2{background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.2);}
+#go-s2 .gn{color:#7c3aed;}#go-s2 .gv{color:#a78bfa;}
+.btn-restart{background:linear-gradient(135deg,#b8732a,#7a4a10);color:#fff;border:none;border-radius:12px;padding:14px 38px;font-family:'Cinzel',serif;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:all .2s;}
+.btn-restart:hover{transform:translateY(-2px);filter:brightness(1.2);}
+</style>
+</head>
+<body>
+
+<!-- A-Frame background dekoratif -->
+<a-scene embedded vr-mode-ui="enabled:false" background="color:#000">
+  <a-sky color="#000"></a-sky>
+  <a-light type="ambient" intensity="0.4" color="#fff"></a-light>
+  <a-light type="point" intensity="1.5" position="0 3 -1" color="#b8732a" distance="8"></a-light>
+  <a-light type="point" intensity="0.7" position="-3 2 0" color="#c8860a" distance="6"></a-light>
+  <a-light type="point" intensity="0.7" position=" 3 2 0" color="#7c3aed" distance="6"></a-light>
+  <a-entity position="0 -1.1 -2.2" rotation="18 0 0">
+    <a-box scale="5.6 0.22 1.8" color="#3a1e00" material="roughness:0.55;metalness:0.08;emissive:#1a0e00;emissiveIntensity:0.3"></a-box>
+    <a-box position="0 0.12 0" scale="5.4 0.01 1.7" color="#5c3010" material="roughness:0.45"></a-box>
+    <a-torus position="-2.9 0.14 0" radius="0.38" radius-tubular="0.022" rotation="90 0 0" color="#b8732a" material="roughness:0.2;metalness:0.7;emissive:#b8732a;emissiveIntensity:0.4"></a-torus>
+    <a-torus position="2.9 0.14 0" radius="0.38" radius-tubular="0.022" rotation="90 0 0" color="#7c3aed" material="roughness:0.2;metalness:0.7;emissive:#7c3aed;emissiveIntensity:0.4"></a-torus>
+  </a-entity>
+</a-scene>
+
+<!-- Canvas 2D papan interaktif -->
+<canvas id="board-canvas"></canvas>
+
+<!-- HOME -->
+<div id="home-screen">
+  <div class="menu-title">DAKRON</div>
+  <p class="menu-sub">Congklak Tradisional Indonesia</p>
+  <div class="stats-box">
+    <div class="snum" id="stat-wins">0</div>
+    <div class="slbl">Total Menang</div>
+  </div>
+  <div class="sec-lbl">⚡ Offline</div>
+  <button class="btn-home btn-bot" onclick="startBotMode()">🤖 Lawan Bot AI</button>
+  <div class="sec-lbl" style="margin-top:10px;">🌐 Online</div>
+  <button class="btn-home btn-online" onclick="joinOnlineMatch()">👥 Cari Lawan Online</button>
+  <p id="wait-info">Menghubungkan...</p>
+  <button class="btn-back" onclick="window.history.back()">← Kembali ke Beranda</button>
+</div>
+
+<!-- HUD -->
+<div id="game-hud">
+  <div class="pcard active" id="card-p1">
+    <div class="pcard-name" id="name-p1">ANDA</div>
+    <div class="pcard-score" id="score-p1">0</div>
+    <div class="pcard-lbl">biji di rumah</div>
+  </div>
+  <div id="timer-wrap">
+    <div style="position:relative;width:64px;height:64px;">
+      <svg id="timer-svg" width="64" height="64" viewBox="0 0 64 64">
+        <circle class="bg" cx="32" cy="32" r="26"/>
+        <circle class="fg" id="tcircle" cx="32" cy="32" r="26"/>
+      </svg>
+      <div id="timer-num">15</div>
+    </div>
+    <div id="turn-lbl">GILIRAN ANDA</div>
+  </div>
+  <div class="pcard" id="card-p2">
+    <div class="pcard-name" id="name-p2">🤖 BOT</div>
+    <div class="pcard-score" id="score-p2">0</div>
+    <div class="pcard-lbl">biji di rumah</div>
+  </div>
+  <div id="toast"></div>
+  <div id="bot-tag">🤖 Bot berpikir...</div>
+</div>
+
+<!-- GAME OVER -->
+<div id="go-modal">
+  <div class="go-box">
+    <div class="go-ico" id="go-ico">🏆</div>
+    <div class="go-ttl" id="go-ttl">MENANG!</div>
+    <div class="go-sub" id="go-sub">Selamat!</div>
+    <div class="go-scores">
+      <div class="go-sbox" id="go-s1"><div class="gn">ANDA</div><div class="gv" id="go-v1">0</div></div>
+      <div class="go-sbox" id="go-s2"><div class="gn" id="go-n2">BOT</div><div class="gv" id="go-v2">0</div></div>
+    </div>
+    <button class="btn-restart" onclick="restartGame()">🔄 Main Lagi</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  AUDIO
+// ═══════════════════════════════════════════════════════════
+const sfxBg  = new Audio('/assets/congklak.mp3');
+const sfxWin = new Audio('/assets/menang.mp3');
+const sfxLos = new Audio('/assets/kalah.mp3');
+sfxBg.loop=true; sfxBg.volume=0.32;
+const playBg  = ()=>{ sfxBg.currentTime=0; sfxBg.play().catch(()=>{}); };
+const stopBg  = ()=>{ sfxBg.pause(); sfxBg.currentTime=0; };
+const playWin = ()=>{ stopBg(); sfxWin.play().catch(()=>{}); };
+const playLos = ()=>{ stopBg(); sfxLos.play().catch(()=>{}); };
+
+// ═══════════════════════════════════════════════════════════
+//  CANVAS & LAYOUT
+// ═══════════════════════════════════════════════════════════
+const canvas = document.getElementById('board-canvas');
+const ctx    = canvas.getContext('2d');
+
+// Variabel layout global
+let W, H;
+// Papan
+let BX, BY, BW, BH;
+// Radii
+let HRAD;   // radius lubang kecil
+let SRAD;   // radius induk (store)
+let HGAP;   // jarak horizontal antar lubang kecil
+let HBOTTOM, HTOP; // y baris bawah (P1) dan atas (P2)
+
+function resize(){
+  canvas.width  = W = window.innerWidth;
+  canvas.height = H = window.innerHeight;
+
+  // ── Papan lebih besar: 94% lebar, 34% tinggi ──
+  BW = W * 0.94;
+  BH = H * 0.34;
+  BX = (W - BW) / 2;
+  // Tepat di tengah layar
+  BY = (H - BH) / 2;
+
+  // ── Ukuran induk lebih besar dari lubang kecil ──
+  // Induk = 40% dari setengah tinggi papan
+  SRAD = BH * 0.36;
+
+  // ── Lubang kecil ──
+  // Gunakan space yang tersisa setelah kedua induk, bagi 7
+  // Beri padding ekstra agar tidak tabrakan
+  const storeSpace = SRAD * 2 + BW * 0.025; // lebar area induk kiri + kanan
+  const innerW     = BW - storeSpace * 2;
+  HGAP = innerW / 7;
+  // Radius lubang kecil = 38% dari HGAP agar ada jarak cukup
+  HRAD = HGAP * 0.38;
+
+  // ── Jarak vertikal baris P1 (bawah) dan P2 (atas) ──
+  // Beri ruang cukup antara dua baris agar tidak tabrakan
+  // P1 baris bawah: 72% dari tinggi papan
+  HBOTTOM = BY + BH * 0.73;
+  // P2 baris atas: 28% dari tinggi papan
+  HTOP    = BY + BH * 0.27;
+
+  // Pastikan radius tidak melebihi jarak ke tepi papan
+  const maxR = (HBOTTOM - HTOP) / 2 - 8;
+  if(HRAD > maxR) HRAD = maxR;
+
+  buildLayout();
+  if(gameActive) drawFrame();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  POSISI LUBANG
+//
+//  Layout papan (top-down):
+//  ┌──────┬─────────────────────────────────┬──────┐
+//  │RUMAH │  [8][9][10][11][12][13][14]     │      │  ← P2 atas
+//  │ P2   │  [0][1][ 2][ 3][ 4][ 5][ 6]    │RUMAH │  ← P1 bawah
+//  │(kiri)│                                 │ P1   │
+//  └──────┴─────────────────────────────────┴(kanan)┘
+//
+//  idx 0-6  : lubang P1 (baris bawah, kiri→kanan)
+//  idx 7    : rumah P1 → KANAN
+//  idx 8-14 : lubang P2 (baris atas, kiri→kanan, sejajar P1)
+//  idx 15   : rumah P2 → KIRI
+//
+//  CAPTURE: lubang P1[i] berhadapan dengan P2[i+8]
+//   P1[0]↔P2[8], P1[1]↔P2[9], ..., P1[6]↔P2[14]
+//   Rumus: jika idx P1 = i (0-6), maka opp = i + 8
+//          jika idx P2 = i (8-14), maka opp = i - 8
+// ═══════════════════════════════════════════════════════════
+const holePos = [];
+
+function buildLayout(){
+  holePos.length = 0;
+
+  const storeSpace = SRAD * 2 + BW * 0.025;
+  // X posisi lubang pertama (idx 0) — tengah gap pertama
+  const firstX = BX + storeSpace + HGAP * 0.5;
+
+  // P1 lubang 0-6 (baris bawah)
+  for(let i = 0; i < 7; i++)
+    holePos.push({ x: firstX + i * HGAP, y: HBOTTOM, r: HRAD });
+
+  // P1 rumah idx 7 — sisi KANAN
+  holePos.push({ x: BX + BW - SRAD - BW * 0.012, y: BY + BH / 2, r: SRAD });
+
+  // P2 lubang 8-14 (baris atas, idx 8 sejajar idx 0)
+  for(let i = 0; i < 7; i++)
+    holePos.push({ x: firstX + i * HGAP, y: HTOP, r: HRAD });
+
+  // P2 rumah idx 15 — sisi KIRI
+  holePos.push({ x: BX + SRAD + BW * 0.012, y: BY + BH / 2, r: SRAD });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+function initBoard(){
+  const b = new Array(16).fill(7);
+  b[7] = 0; b[15] = 0;
+  return b;
+}
+
+let board       = initBoard();
+let myRole      = 'P1';
+let currentTurn = 'P1';
+let isBotMode   = false;
+let gameActive  = false;
+let animating   = false;
+let socket, roomId;
+
+const savedUser = localStorage.getItem('gameportal_username') || 'Pemain';
+let savedWins   = parseInt(localStorage.getItem('congklak_wins') || '0');
+document.getElementById('stat-wins').innerText = savedWins;
+
+// Biji yang sedang terbang { x, y, r }
+let flyingSeeds = [];
+
+// ═══════════════════════════════════════════════════════════
+//  TIMER
+// ═══════════════════════════════════════════════════════════
+let timerIv = null, timerLeft = 15;
+const TMAX = 15, CIRC = 2 * Math.PI * 26;
+
+function startTimer(){
+  clearInterval(timerIv); timerLeft = TMAX; _timerUI(TMAX);
+  timerIv = setInterval(() => {
+    timerLeft--; _timerUI(timerLeft);
+    if(timerLeft <= 0){ clearInterval(timerIv); autoPickHole(); }
+  }, 1000);
+}
+function stopTimer(){ clearInterval(timerIv); }
+function _timerUI(t){
+  const c = document.getElementById('tcircle'), n = document.getElementById('timer-num');
+  c.style.strokeDashoffset = CIRC * (1 - t / TMAX);
+  const col = t > 10 ? '#2ecc71' : t > 5 ? '#f0c060' : '#e74c3c';
+  c.style.stroke = col; n.style.color = col; n.innerText = t;
+}
+function autoPickHole(){
+  if(currentTurn !== myRole || animating) return;
+  const s = myRole === 'P1' ? 0 : 8, e = myRole === 'P1' ? 7 : 15;
+  for(let i = s; i < e; i++) if(board[i] > 0){ doMove(i); return; }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RNG DETERMINISTIK (biji tidak bergerak tiap frame)
+// ═══════════════════════════════════════════════════════════
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DRAW — Canvas 2D
+// ═══════════════════════════════════════════════════════════
+function drawBoard(){
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 52;
+  ctx.beginPath(); ctx.roundRect(BX, BY, BW, BH, 28);
+  const wood = ctx.createLinearGradient(BX, BY, BX, BY + BH);
+  wood.addColorStop(0,   '#6b3a12');
+  wood.addColorStop(0.18,'#7c4418');
+  wood.addColorStop(0.5, '#52280c');
+  wood.addColorStop(0.82,'#7c4418');
+  wood.addColorStop(1,   '#3a1e08');
+  ctx.fillStyle = wood; ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Serat kayu
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(BX, BY, BW, BH, 28); ctx.clip();
+  ctx.strokeStyle = 'rgba(0,0,0,0.045)'; ctx.lineWidth = 1;
+  for(let i = 1; i < 18; i++){
+    const yy = BY + BH * (i / 18);
+    ctx.beginPath(); ctx.moveTo(BX, yy); ctx.lineTo(BX + BW, yy); ctx.stroke();
+  }
+  ctx.restore();
+
+  // Garis tengah pemisah P1/P2
+  const lx0 = holePos[15].x + SRAD + 12;
+  const lx1 = holePos[7].x  - SRAD - 12;
+  ctx.setLineDash([10, 7]); ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(lx0, BY + BH / 2); ctx.lineTo(lx1, BY + BH / 2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Border luar papan
+  ctx.beginPath(); ctx.roundRect(BX, BY, BW, BH, 28);
+  ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.restore();
+}
+
+function drawHole(idx){
+  const { x, y, r } = holePos[idx];
+  const isStore = (idx === 7 || idx === 15);
+  const isP1    = idx < 8; // idx 0-7 milik P1, idx 8-15 milik P2
+
+  // Cekungan lubang
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  const hg = ctx.createRadialGradient(x, y - r * 0.18, r * 0.06, x, y, r);
+  hg.addColorStop(0, '#1e0b00'); hg.addColorStop(1, '#080200');
+  ctx.fillStyle = hg; ctx.fill();
+
+  // Inner shadow
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 4; ctx.stroke();
+
+  // Ring tepi
+  const myTurn = currentTurn === myRole && !animating;
+  const mine   = myRole === 'P1' ? (idx >= 0 && idx <= 6) : (idx >= 8 && idx <= 14);
+  const canClick = !isStore && myTurn && mine && board[idx] > 0;
+
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  let ringCol;
+  if(isStore){
+    ringCol = isP1 ? '#c8860a' : '#7c3aed';
+    ctx.lineWidth = 3.5;
+    ctx.shadowColor = ringCol; ctx.shadowBlur = 16;
+  } else if(canClick){
+    ringCol = '#f0c060';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#f0c060'; ctx.shadowBlur = 14;
+  } else {
+    ringCol = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1.5;
+  }
+  ctx.strokeStyle = ringCol; ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Teks
+  const cnt = board[idx];
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  if(isStore){
+    // Nomor besar
+    ctx.font = `bold ${r * 0.55}px 'Cinzel',serif`;
+    ctx.fillStyle = isP1 ? '#f0c060' : '#c4b5fd';
+    ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 8;
+    ctx.fillText(cnt, x, y - r * 0.08);
+    // Label
+    ctx.font = `${r * 0.20}px 'Crimson Pro',serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.30)'; ctx.shadowBlur = 0;
+    ctx.fillText(isP1 ? 'RUMAH P1' : 'RUMAH P2', x, y + r * 0.40);
+    ctx.fillText(isP1 ? '◀ KANAN'  : 'KIRI ▶',   x, y + r * 0.62);
+  } else {
+    // Angka lubang kecil
+    ctx.font = `bold ${r * 0.72}px 'Cinzel',serif`;
+    ctx.fillStyle = cnt > 0 ? 'rgba(240,192,96,0.95)' : 'rgba(255,255,255,0.12)';
+    ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 4;
+    ctx.fillText(cnt, x, y);
+    ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+}
+
+// Gambar bola biji KUNING di dalam lubang
+function drawSeedBall(x, y, r){
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.05, x, y, r);
+  g.addColorStop(0,   '#ffe066');  // kuning terang
+  g.addColorStop(0.4, '#c8860a');  // kuning emas
+  g.addColorStop(1,   '#4a2c00');  // coklat gelap (sisi bawah)
+  ctx.fillStyle = g;
+  ctx.fill();
+  // Kilap
+  ctx.beginPath(); ctx.arc(x - r * 0.28, y - r * 0.28, r * 0.28, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,220,0.35)'; ctx.fill();
+}
+
+function drawSeedsInHole(idx){
+  const { x, y, r } = holePos[idx];
+  const cnt = board[idx]; if(cnt === 0) return;
+  const isStore = (idx === 7 || idx === 15);
+  const maxVis  = isStore ? Math.min(cnt, 18) : Math.min(cnt, 8);
+  const spread  = r * 0.58;
+  const rng     = mulberry32(idx * 1337 + cnt * 97);
+  const br      = isStore ? r * 0.12 : r * 0.18; // ukuran bola biji
+  for(let i = 0; i < maxVis; i++){
+    const ox = (rng() - 0.5) * spread * 2;
+    const oy = (rng() - 0.5) * spread * (isStore ? 1.1 : 0.85);
+    drawSeedBall(x + ox, y + oy, br);
+  }
+}
+
+// Glow lubang yang bisa diklik
+function drawGlow(idx){
+  const { x, y, r } = holePos[idx];
+  const g = ctx.createRadialGradient(x, y, r * 0.3, x, y, r + 14);
+  g.addColorStop(0, 'rgba(240,192,96,0.25)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.beginPath(); ctx.arc(x, y, r + 14, 0, Math.PI * 2);
+  ctx.fillStyle = g; ctx.fill();
+}
+
+// Panah arah
+function drawArrows(){
+  ctx.save();
+  ctx.font = `${Math.max(11, BH * 0.065)}px 'Crimson Pro',serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const midX = (holePos[15].x + SRAD + holePos[7].x - SRAD) / 2;
+  // P1 bawah → kanan
+  ctx.fillStyle = 'rgba(200,134,10,0.32)';
+  ctx.fillText('P1 ──────────────────→ RUMAH', midX, HBOTTOM + HRAD + BH * 0.09);
+  // P2 atas ← kiri
+  ctx.fillStyle = 'rgba(124,58,237,0.32)';
+  ctx.fillText('RUMAH ←────────────────── P2', midX, HTOP - HRAD - BH * 0.09);
+  ctx.restore();
+}
+
+// FRAME UTAMA
+function drawFrame(){
+  ctx.clearRect(0, 0, W, H);
+  if(!gameActive) return;
+
+  drawBoard();
+  drawArrows();
+
+  // Glow lubang yang bisa diklik
+  const myTurn = currentTurn === myRole && !animating;
+  for(let i = 0; i < 16; i++){
+    if(i === 7 || i === 15) continue;
+    const mine = myRole === 'P1' ? (i >= 0 && i <= 6) : (i >= 8 && i <= 14);
+    if(myTurn && mine && board[i] > 0) drawGlow(i);
+  }
+
+  // Semua lubang
+  for(let i = 0; i < 16; i++) drawHole(i);
+  // Biji di dalam lubang
+  for(let i = 0; i < 16; i++) drawSeedsInHole(i);
+  // Biji terbang
+  for(const s of flyingSeeds) drawSeedBall(s.x, s.y, s.r);
+}
+
+// RAF 60fps
+let _rafStarted = false;
+function startRenderLoop(){
+  if(_rafStarted) return; _rafStarted = true;
+  const loop = () => { drawFrame(); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TRAVERSAL
+//  Arah biji mengikuti aturan congklak:
+//  - P1 (baris bawah): bergerak ke KANAN (idx 0→1→2→3→4→5→6 → rumah P1 (7))
+//    lalu naik ke baris P2 dari KANAN ke KIRI (idx 14→13→12→11→10→9→8 → rumah P2 (15))
+//    lalu kembali ke P1 dari kiri
+//  - P2 kebalikannya
+//
+//  Urutan lengkap untuk P1:
+//    0,1,2,3,4,5,6 → 7(rumah P1) → 14,13,12,11,10,9,8 → 15(rumah P2) → 0,...
+//  Urutan lengkap untuk P2:
+//    14,13,12,11,10,9,8 → 15(rumah P2) → 0,1,2,3,4,5,6 → 7(rumah P1, dilewati) → 14,...
+// ═══════════════════════════════════════════════════════════
+
+// Urutan traversal untuk P1: 0..6, 7(rumah P1), 14..8, 15(rumah P2), lalu ulang
+const SEQUENCE_P1 = [0,1,2,3,4,5,6, 7, 14,13,12,11,10,9,8, 15];
+// Urutan traversal untuk P2: 14..8, 15(rumah P2), 0..6, skip 7(rumah P1)
+const SEQUENCE_P2 = [14,13,12,11,10,9,8, 15, 0,1,2,3,4,5,6];
+
+function getNext(cur, role){
+  if(role === 'P1'){
+    const idx = SEQUENCE_P1.indexOf(cur);
+    return SEQUENCE_P1[(idx + 1) % SEQUENCE_P1.length];
+  } else {
+    const idx = SEQUENCE_P2.indexOf(cur);
+    return SEQUENCE_P2[(idx + 1) % SEQUENCE_P2.length];
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ANIMASI BIJI — SATU PER SATU, 1 DETIK TIAP BIJI
+// ═══════════════════════════════════════════════════════════
+const SEED_DUR  = 1000; // ms per biji — 1 detik
+const SEED_GAP  = 40;   // ms jeda setelah biji mendarat
+
+function doMove(holeIndex){
+  if(animating) return;
+  animating = true;
+  const role = currentTurn;
+
+  const totalSeeds = board[holeIndex];
+  // Tidak langsung dikosongkan — akan dikurangi 1/1 saat setiap biji mulai terbang
+
+  // Hitung semua tujuan
+  const targets = [];
+  let cur = holeIndex;
+  for(let s = 0; s < totalSeeds; s++){
+    cur = getNext(cur, role);
+    targets.push(cur);
+  }
+  const lastIdx = targets[targets.length - 1];
+
+  let si = 0;
+
+  function flyNext(){
+    if(si >= targets.length){
+      // Semua biji sudah mendarat — evaluasi
+      evaluateMove(role, lastIdx);
+      return;
+    }
+
+    const toIdx  = targets[si++];
+    const from   = holePos[holeIndex]; // semua biji diangkat dari lubang asal
+    const to     = holePos[toIdx];
+
+    // Kurangi 1 dari lubang sumber saat biji MULAI terbang
+    board[holeIndex]--;
+
+    const seed = { x: from.x, y: from.y, r: HRAD * 0.20 };
+    flyingSeeds.push(seed);
+
+    const t0 = performance.now();
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    // Arc tinggi proporsional terhadap jarak
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const arcH = -(BH * 0.22 + dist * 0.06);
+    let landed = false;
+
+    function tick(now){
+      const t = Math.min((now - t0) / SEED_DUR, 1);
+      // Ease in-out cubic
+      const e = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
+      seed.x = from.x + dx * e;
+      seed.y = from.y + dy * e + Math.sin(Math.PI * t) * arcH;
+
+      // Tambahkan ke board SAAT biji mendarat (t >= 0.92) — angka muncul bareng biji masuk
+      if(!landed && t >= 0.92){
+        landed = true;
+        board[toIdx]++;
+      }
+
+      if(t < 1){
+        requestAnimationFrame(tick);
+      } else {
+        flyingSeeds.splice(flyingSeeds.indexOf(seed), 1);
+        setTimeout(flyNext, SEED_GAP);
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  flyNext();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EVALUASI SETELAH ANIMASI SELESAI
+//
+//  CAPTURE (aturan congklak):
+//  Jika biji terakhir jatuh di lubang KOSONG milik sendiri,
+//  dan lubang BERHADAPAN milik lawan berisi biji →
+//  semua biji di lubang lawan + 1 biji ini masuk ke rumah sendiri.
+//
+//  Hubungan berhadapan (sesuai layout baru):
+//   P1[i] ↔ P2[i+8]  (i = 0..6)
+//   P1[0]↔P2[8], P1[1]↔P2[9], ..., P1[6]↔P2[14]
+// ═══════════════════════════════════════════════════════════
+function getOpposite(idx){
+  // Lubang P1 (0-6): berhadapan dengan P2 (8-14)
+  if(idx >= 0 && idx <= 6)  return idx + 8;
+  // Lubang P2 (8-14): berhadapan dengan P1 (0-6)
+  if(idx >= 8 && idx <= 14) return idx - 8;
+  return -1; // induk tidak punya lawan
+}
+
+function evaluateMove(role, lastIdx){
+  const ownStore = role === 'P1' ? 7 : 15;
+  const ownStart = role === 'P1' ? 0 : 8;
+  const ownEnd   = role === 'P1' ? 6 : 14;
+  let extraTurn  = false;
+
+  if(lastIdx === ownStore){
+    // Jatuh di rumah sendiri → bonus giliran
+    extraTurn = true;
+    showToast('🎯 Biji di Rumah! Giliran lagi!');
+
+  } else if(lastIdx >= ownStart && lastIdx <= ownEnd && board[lastIdx] === 1){
+    // Jatuh di lubang KOSONG milik sendiri (sekarang isi 1 = baru saja diisi)
+    const opp = getOpposite(lastIdx);
+    if(opp >= 0 && board[opp] > 0){
+      // Capture: ambil semua biji lawan di lubang berhadapan + biji ini
+      board[ownStore] += board[opp] + 1;
+      board[opp]       = 0;
+      board[lastIdx]   = 0;
+      showToast('🎣 Capture! Biji lawan diambil!');
+    }
+    // Jika lubang lawan kosong, tidak ada capture, giliran berpindah biasa
+  }
+
+  // Cek game over
+  const p1Empty = board.slice(0, 7).every(v => v === 0);
+  const p2Empty = board.slice(8, 15).every(v => v === 0);
+  if(p1Empty || p2Empty){
+    for(let i = 0; i < 7; i++)  { board[7]  += board[i]; board[i] = 0; }
+    for(let i = 8; i < 15; i++) { board[15] += board[i]; board[i] = 0; }
+    animating = false;
+    updateHUD();
+    setTimeout(() => showGameOver(), 400);
+    return;
+  }
+
+  if(!extraTurn) currentTurn = currentTurn === 'P1' ? 'P2' : 'P1';
+  animating = false;
+  updateHUD();
+
+  if(isBotMode && currentTurn === 'P2') setTimeout(botTurn, 400);
+  else if(currentTurn === myRole) startTimer();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  KLIK CANVAS
+// ═══════════════════════════════════════════════════════════
+canvas.style.pointerEvents = 'all';
+canvas.addEventListener('click', e => {
+  if(animating || currentTurn !== myRole) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  for(let i = 0; i < 16; i++){
+    if(i === 7 || i === 15) continue;
+    const mine = myRole === 'P1' ? (i >= 0 && i <= 6) : (i >= 8 && i <= 14);
+    if(!mine || board[i] === 0) continue;
+    const { x, y, r } = holePos[i];
+    if(Math.hypot(mx - x, my - y) <= r + 10){
+      stopTimer();
+      isBotMode ? doMove(i) : sendMove(i);
+      return;
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+//  BOT
+// ═══════════════════════════════════════════════════════════
+function botTurn(){
+  if(currentTurn !== 'P2' || !isBotMode) return;
+  document.getElementById('bot-tag').style.display = 'block';
+  setTimeout(() => {
+    document.getElementById('bot-tag').style.display = 'none';
+    let best = -1, bestScore = -999;
+    for(let i = 8; i <= 14; i++){
+      if(board[i] === 0) continue;
+      let score = board[i], s = board[i], c = i;
+      while(s > 0){ c = getNext(c, 'P2'); s--; }
+      if(c === 15) score += 25;
+      else if(c >= 8 && c <= 14 && board[c] === 0 && board[getOpposite(c)] > 0)
+        score += board[getOpposite(c)] * 2 + 10;
+      if(score > bestScore){ bestScore = score; best = i; }
+    }
+    if(best >= 0) doMove(best);
+  }, 300);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  HUD
+// ═══════════════════════════════════════════════════════════
+function updateHUD(){
+  document.getElementById('score-p1').innerText = board[7];
+  document.getElementById('score-p2').innerText = board[15];
+  document.getElementById('card-p1').classList.toggle('active', currentTurn === 'P1');
+  document.getElementById('card-p2').classList.toggle('active', currentTurn === 'P2');
+  const lbl = document.getElementById('turn-lbl');
+  if(currentTurn === myRole){
+    lbl.innerText = 'GILIRAN ANDA'; lbl.style.color = '#f0c060';
+    showToast('✨ Giliran Anda! Klik lubang.');
+  } else {
+    lbl.innerText = isBotMode ? 'GILIRAN BOT' : 'GILIRAN LAWAN';
+    lbl.style.color = '#8b5cf6'; clearToast();
+  }
+}
+
+let _tt;
+function showToast(m){
+  const el = document.getElementById('toast');
+  el.innerText = m; el.style.display = 'block';
+  clearTimeout(_tt); _tt = setTimeout(() => el.style.display = 'none', 2500);
+}
+function clearToast(){ document.getElementById('toast').style.display = 'none'; }
+
+// ═══════════════════════════════════════════════════════════
+//  GAME START / OVER / RESTART
+// ═══════════════════════════════════════════════════════════
+function startBotMode(){
+  isBotMode = true; myRole = 'P1'; board = initBoard(); currentTurn = 'P1';
+  animating = false; flyingSeeds.length = 0;
+  document.getElementById('home-screen').style.display = 'none';
+  document.getElementById('game-hud').style.display = 'block';
+  document.getElementById('name-p1').innerText = savedUser.toUpperCase();
+  document.getElementById('name-p2').innerText = '🤖 BOT';
+  document.getElementById('go-n2').innerText = 'BOT';
+  gameActive = true;
+  resize(); startRenderLoop(); updateHUD(); startTimer(); playBg();
+}
+
+function showGameOver(){
+  const p1 = board[7], p2 = board[15];
+  const win = p1 > p2 ? 'P1' : p2 > p1 ? 'P2' : 'Seri';
+  document.getElementById('go-v1').innerText = p1;
+  document.getElementById('go-v2').innerText = p2;
+  if(win === 'Seri'){
+    document.getElementById('go-ico').innerText = '🤝';
+    document.getElementById('go-ttl').innerText = 'SERI!';
+    document.getElementById('go-sub').innerText = `${p1} vs ${p2}`;
+    stopBg();
+  } else if(win === myRole){
+    document.getElementById('go-ico').innerText = '🏆';
+    document.getElementById('go-ttl').innerText = 'ANDA MENANG!';
+    document.getElementById('go-sub').innerText = `Biji Anda ${p1} vs ${p2}`;
+    savedWins++; localStorage.setItem('congklak_wins', savedWins);
+    document.getElementById('stat-wins').innerText = savedWins;
+    playWin();
+  } else {
+    document.getElementById('go-ico').innerText = '😔';
+    document.getElementById('go-ttl').innerText = isBotMode ? 'BOT MENANG!' : 'LAWAN MENANG!';
+    document.getElementById('go-sub').innerText = `${p2} vs ${p1}`;
+    playLos();
+  }
+  document.getElementById('go-modal').style.display = 'flex';
+}
+
+function restartGame(){
+  document.getElementById('go-modal').style.display = 'none';
+  board = initBoard(); currentTurn = 'P1'; myRole = 'P1';
+  animating = false; flyingSeeds.length = 0;
+  updateHUD(); startTimer(); playBg();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ONLINE (WebSocket)
+// ═══════════════════════════════════════════════════════════
+function sendMove(i){ if(socket) socket.emit('moveClick', { roomId, holeIndex: i }); }
+
+function joinOnlineMatch(){
+  document.getElementById('wait-info').style.display = 'block';
+  try{
+    socket = io();
+    socket.on('connect_error', () => {
+      document.getElementById('wait-info').innerText = '❌ Gagal terhubung ke server. Pastikan OpenVPN aktif & server berjalan, lalu coba lagi.';
+    });
+    socket.on('initRole', d => { myRole = d.role; roomId = d.roomId; document.getElementById('wait-info').innerText = '⏳ Menunggu pemain lain bergabung...'; });
+    socket.on('startGame', d => {
+      document.getElementById('home-screen').style.display = 'none';
+      document.getElementById('game-hud').style.display = 'block';
+      document.getElementById('name-p2').innerText = 'LAWAN';
+      document.getElementById('go-n2').innerText = 'LAWAN';
+      board = d.board; currentTurn = d.currentTurn; gameActive = true;
+      resize(); startRenderLoop(); updateHUD();
+      if(currentTurn === myRole) startTimer(); playBg();
+    });
+    socket.on('updateBoard', d => {
+      board = d.board; currentTurn = d.currentTurn; updateHUD();
+      if(currentTurn === myRole) startTimer(); else stopTimer();
+    });
+    socket.on('gameOverDakron', d => {
+      board = d.board; stopTimer();
+      if(d.winner === myRole){ savedWins++; localStorage.setItem('congklak_wins', savedWins); }
+      setTimeout(() => showGameOver(), 300);
+    });
+    socket.emit('joinDakron', { username: savedUser });
+  } catch(e){ alert('Server tidak tersedia. Gunakan mode VS Bot.'); }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+window.addEventListener('resize', resize);
+resize();
+</script>
+</body>
+</html>
